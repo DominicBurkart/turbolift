@@ -1,0 +1,13 @@
+[package]
+name = "turbolift"
+version = "0.1.0"
+authors = ["Dominic Burkart <@DominicBurkart>"]
+edition = "2018"
+description = "WIP"
+readme = "README.md"
+license = "MIT OR BSD-2-Clause OR GPL-2.0+"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
