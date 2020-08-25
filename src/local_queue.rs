@@ -4,7 +4,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{self, DeriveInput};
 
-use crate::distributed_platform::{DistributionPlatform, DistributionResult, DistributionError};
+use crate::distributed_platform::{DistributionPlatform, DistributionResult};
 
 pub struct LocalQueue;
 
@@ -18,7 +18,7 @@ impl DistributionPlatform for LocalQueue {
     }
 
     #[proc_macro_attribute]
-    fn dispatch(attr: TokenStream, item: TokenStream) -> TokenStream {
+    fn dispatch(_attr: TokenStream, item: TokenStream) -> TokenStream {
         let function: DeriveInput = syn::parse(item).unwrap();
         println!("{}", function.ident);
         // println!("{:#?}", function.attrs);

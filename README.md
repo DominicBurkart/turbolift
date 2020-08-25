@@ -1,12 +1,19 @@
 # Turbolift
 
+<img
+    src="https://img.shields.io/crates/v/turbolift.svg"
+    alt="turbolift’s current version badge"
+    title="turbolift’s current version badge" />
+[![status](https://github.com/DominicBurkart/turbolift/workflows/rust%20linters/badge.svg)](https://github.com/DominicBurkart/turbolift/actions?query=is%3Acompleted+branch%3Amaster+workflow%3A"rust+linters")
+
 Distributing rust programs, function by function. NOTE: Turbolift is 
-under active development, but is not yet ready for production use.
+under active development, but its API is not stable and it is not 
+yet ready for production use.
 
 ## Example
 
-With Turbolift, you tag a every function that should be distributed 
- with the [attribute macro](https://doc.rust-lang.org/reference/procedural-macros.html#attribute-macros) `on`.
+With Turbolift, you tag every function that should be distributed 
+ with an [attribute macro](https://doc.rust-lang.org/reference/procedural-macros.html#attribute-macros) like `on`.
  `on` takes a distribution platform as an argument, and turns the 
  function into a portable application binary that can be run on the 
  passed platform. 
@@ -121,8 +128,8 @@ to run a given task.
 Currently, only Docker [Swarm](https://docs.docker.com/engine/swarm/)
 and a local debug queue are targeted. I'd love help adding additional
 target platforms! Especially:
-- AWS Lambda
 - Kubernetes
+- AWS Lambda
 - Apache Mesos (and/or Hadoop, and/or Spark)
 
 Some cluster managers and task schedulers that can't handle open-ended 
