@@ -100,7 +100,8 @@ distribution platform as soon as possible.
 a simple macro, you can organize your project based on the application 
 logic, instead of structuring your code based on where it will run. 
 Instead of breaking up your code and tailoring the components to work on
-a specific distribution platform, you can use regular rust syntax. This 
+a specific distribution platform, you can organize your code however 
+makes the most sense use regular rust syntax to handle distribution. This 
 makes adding distribution to an existing program easier, and abstracting 
 away from the target platform decreases tech debt and makes switching 
 (or mixing) platforms much, much easier.
@@ -119,7 +120,7 @@ to run a given task.
 ## Supported Distribution Platforms
 Currently, only Docker [Swarm](https://docs.docker.com/engine/swarm/)
 and a local debug queue are targeted. I'd love help adding additional
-target platforms! Platforms I would especially love to support:
+target platforms! Especially:
 - AWS Lambda
 - Kubernetes
 - Apache Mesos (and/or Hadoop, and/or Spark)

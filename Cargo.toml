@@ -7,7 +7,12 @@ description = "WIP"
 readme = "README.md"
 license = "MIT OR BSD-2-Clause OR GPL-2.0+"
 
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+proc-macro = true
 
 [dependencies]
+syn = "1.0"
+quote = "1.0"
+serde = "1"
+futures = "0.3"
+proc-macro2 = "1.0"
