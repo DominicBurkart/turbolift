@@ -7,8 +7,7 @@
 [![status](https://github.com/DominicBurkart/turbolift/workflows/rust%20linters/badge.svg)](https://github.com/DominicBurkart/turbolift/actions?query=is%3Acompleted+branch%3Amaster+workflow%3A"rust+linters")
 
 Distributing rust programs, function by function. NOTE: Turbolift is 
-under active development, but its API is not stable and it is not 
-yet ready for production use.
+still very much in development, and does not yet have a stable API.
 
 ## Example
 
@@ -144,6 +143,7 @@ distributed). I would especially like to support [SLURM](https://en.wikipedia.or
 - Distributed functions cannot use other functions called `main`.
 - Distributed functions not in `main.rs` cannot use functions declared 
 in `main.rs`.
+- Distributed functions cannot have `-> impl Trait` types.
 - Unused functions that have been marked with the `on` macro will still be 
 compiled for distribution, even if eventually the linker will then 
 remove the completed binary and distribution code.

@@ -1,18 +1,22 @@
 extern crate proc_macro;
-use proc_macro::TokenStream;
+use proc_macro2::TokenStream;
+use std::future::Future;
+use std::error;
 
-pub struct DistributionError;
+use async_trait::async_trait;
+
+
+pub type DistributionError = Box<dyn error::Error>;
 pub type DistributionResult<T> = std::result::Result<T, DistributionError>;
 
-pub trait DistributionPlatform: Drop {
-    /// called once before functions are sent
-    fn start(&mut self) -> DistributionResult<()>;
+pub type ArgsString = String;
+pub type JsonResponse = String;
 
-    fn started(&self) -> bool;
+#[async_trait]
+pub trait DistributionPlatform {
+    /// declare a function
+    fn declare(&mut self, function_name: &str, project_binary: Vec<u8>);
 
-    /// called once when the function is declared. Turns
-    /// the function into something like a microservice, where some external
-    /// process is waiting to serve new inputs & outputs.
-    #[proc_macro_attribute]
-    fn dispatch(attr: TokenStream, item: TokenStream) -> TokenStream;
+    // dispatch params to a function
+    async fn dispatch(&mut self, function_name: String, params: ArgsString) -> JsonResponse;
 }
