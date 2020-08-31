@@ -7,24 +7,23 @@
 [![status](https://github.com/DominicBurkart/turbolift/workflows/rust%20linters/badge.svg)](https://github.com/DominicBurkart/turbolift/actions?query=is%3Acompleted+branch%3Amaster+workflow%3A"rust+linters")
 
 Distributing rust programs, function by function. NOTE: Turbolift is 
-still very much in development, and does not yet have a stable API.
+still very much in development. The readme below is as much proscriptive 
+as prescriptive.
 
 ## Example
 
 With Turbolift, you tag every function that should be distributed 
- with an [attribute macro](https://doc.rust-lang.org/reference/procedural-macros.html#attribute-macros) like `on`.
- `on` takes a distribution platform as an argument, and turns the 
- function into a portable application binary that can be run on the 
- passed platform. 
+ with an [attribute macro](https://doc.rust-lang.org/reference/procedural-macros.html#attribute-macros). Below 
+ is an example of how `on` should work.
 
 
-Here is an example of a local function (before):
+### Before (not distributed)
 ```rust
 // imports
 use fastrand;
 
 // local function
-fn expensive_calculation(u: u128) -> u128 {
+fn expensive_calculation(u: u32) -> u32 {
     u.pow(u)
 }
 
@@ -33,7 +32,7 @@ fn main() {
     let sum = 0..100
         .map(
             |_| {
-                let u = fastrand::u128(0..10);
+                let u = fastrand::u32(0..10);
                 expensive_calculation(u)
             }
         )
@@ -44,12 +43,13 @@ fn main() {
 }
 ```
 
-and here is an example of a function set to run as a service on [Swarm](https://docs.docker.com/engine/swarm/) (after):
+### distributed via [Swarm](https://docs.docker.com/engine/swarm/)
 ```rust
 // imports
 use fastrand;
 use std::net::{Ipv4Addr};
-use turbolift::{on, Swarm, SwarmParams};
+use turbolift_macros::on;
+use turbolift::{Swarm, SwarmParams};
 use futures::executor::block_on;
 use futures::future::try_join_all;
 
@@ -65,7 +65,7 @@ const SWARM: Swarm = Swarm::from_params(
 // for every function you want to distribute, add the `on` macro to 
 // set the distribution platform.
 #[on(SWARM)]
-fn expensive_calculation(u: u128) -> u128 {
+fn expensive_calculation(u: u32) -> u32 {
     u.pow(u)
 }
 
@@ -74,7 +74,7 @@ fn main() {
     // run the (distributed) expensive function on 100 random inputs
     let mut futures = Vec::new();
     for _ in 0..100 {
-        let u = fastrand::u128(0..10);
+        let u = fastrand::u32(0..10);
         futures.push(expensive_calculation(u));
     }
     
@@ -95,46 +95,25 @@ fn main() {
 ### What are the differences?
 - `expensive_calculation` can now be run on any node in the swarm, and 
 every call to the function will trigger a swarm task.
-- `expensive_calculation` now returns `Future<DistributedResult<u128>>`,
-instead of returning `u128`.
+- `expensive_calculation` now returns a future for `DistributedResult<u32>`,
+instead of directly returning `u32`.
 - note that we switched from a lazy execution scheme (using `map`) to 
 an eager scheme (using a loop), so that tasks were dispatched to the 
 distribution platform as soon as possible.
 
-## Features
-- distribution as an afterthought. By distributing functions using 
+## Distribution as an afterthought.
+By distributing functions using 
 a simple macro, you can organize your project based on the application 
-logic, instead of structuring your code based on where it will run. 
-Instead of breaking up your code and tailoring the components to work on
-a specific distribution platform, you can organize your code however 
-makes the most sense use regular rust syntax to handle distribution. This 
-makes adding distribution to an existing program easier, and abstracting 
-away from the target platform decreases tech debt and makes switching 
-(or mixing) platforms much, much easier.
-- resource control when you want it. The `on` macro provides the simplest interface
-possible, giving basic distribution. The `with` macro requires more information, but
-lets the distribution platforms handle concurrency way better and provide 
-quick warnings if the cluster is not set up with the correct resources 
-to run a given task. 
-- block when the distribution platform is overwhelmed. By default, 
- the number of tasks the distribution platform should process at a given 
- time is limited (and can be set by the programmer). When the limit is 
- reached and the platform is busy, instead of quickly returning a future 
- as normal, a distributed function call will block until a task has 
- completed and the distribution platform can accept another task. 
+logic, instead of structuring your code based on where it will run. This:
+- lowers the barrier of entry for distributing a program.
+- decreases tech debt and switching costs associated with distribution.
+- lets you organize your project according to application logic, not orchestration 
+details.
+
 
 ## Supported Distribution Platforms
-Currently, only Docker [Swarm](https://docs.docker.com/engine/swarm/)
-and a local debug queue are targeted. I'd love help adding additional
-target platforms! Especially:
-- Kubernetes
-- AWS Lambda
-- Apache Mesos (and/or Hadoop, and/or Spark)
-
-Some cluster managers and task schedulers that can't handle open-ended 
-tasks could still support the `with` macro (like `on`, but forces the 
-user to allocate minimum resource requirements for a function to be 
-distributed). I would especially like to support [SLURM](https://en.wikipedia.org/wiki/Slurm_Workload_Manager).
+- local queue 
+- (other targets WIP, starting with Docker Swarm)
 
 ## Current Limitations
 - For a function to be distributed, its inputs and outputs have to be serializable with [Serde](https://github.com/serde-rs/serde).
