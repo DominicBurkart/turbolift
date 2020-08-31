@@ -89,39 +89,3 @@ impl Drop for LocalQueue {
             );
     }
 }
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[macro_use(c)]
-    extern crate cute;
-
-    use futures::executor::block_on;
-    use futures::future::try_join_all;
-
-    #[test]
-    fn it_works() {
-        const LOCAL: LocalQueue = Default::default();
-
-        #[on(LOCAL)]
-        fn ident(b: bool) -> bool {
-            b
-        }
-
-        let inputs = c![rand::random(), for _ in 0..10];
-        let futures = {
-            let mut v = Vec::new();
-            for b in inputs {
-                v.push(ident(b));
-            }
-            v
-        };
-        let results = block_on(try_join_all(futures)).unwrap();
-        assert_eq!(
-            inputs,
-            results
-        );
-    }
-}

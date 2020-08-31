@@ -7,9 +7,6 @@ description = "WIP"
 readme = "README.md"
 license = "MIT OR BSD-3-Clause OR GPL-2.0+"
 
-[lib]
-proc-macro = true
-
 [dependencies]
 syn = "1.0"
 quote = "1"
