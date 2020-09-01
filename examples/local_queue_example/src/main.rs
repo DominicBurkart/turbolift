@@ -6,7 +6,7 @@ use turbolift::local_queue::LocalQueue;
 const LOCAL: LocalQueue = Default::default();
 
 #[on(LOCAL)]
-fn ident(b: bool) -> bool {
+fn identity(b: bool) -> bool {
     b
 }
 
@@ -15,7 +15,7 @@ fn main() {
     let futures = {
         let mut v = Vec::new();
         for b in input {
-            v.push(ident(b));
+            v.push(identity(b));
         }
         v
     };
@@ -33,7 +33,7 @@ mod tests {
         let futures = {
             let mut v = Vec::new();
             for b in input {
-                v.push(ident(b));
+                v.push(identity(b));
             }
             v
         };

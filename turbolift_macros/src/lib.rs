@@ -8,21 +8,25 @@ use std::fs;
 
 use tar::Builder;
 use quote::quote;
-use turbolift::*;
+use turbolift::{build_project, extract_function};
+use turbolift::CACHE_PATH;
 
 #[proc_macro_attribute]
 pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenStream {
+    println!("in on");
     let distribution_platform = TokenStream2::from(distribution_platform_);
     let function = TokenStream2::from(function_);
     // generate derived syntax
-    let function_name = extract_function::get_function_name(&function);
-    let typed_params = extract_function::get_typed_params(&function);
-    let untyped_params = extract_function::to_untyped_params(&typed_params);
-    let params_as_path = extract_function::to_path_params(&untyped_params);
-    let param_types = extract_function::to_param_types(&typed_params);
-    let params_vec = extract_function::params_json_vec(&param_types);
+    let signature = extract_function::get_fn_signature(function.clone());
+    let function_name = signature.ident.to_string();
+    let typed_params = signature.inputs;
+    let untyped_params = extract_function::to_untyped_params(typed_params.clone());
+    let params_as_path = extract_function::to_path_params(untyped_params.clone());
+    let param_types = extract_function::to_param_types(typed_params.clone());
+    let params_vec = extract_function::params_json_vec(untyped_params.clone());
     let unpacked_path_params = extract_function::unpack_path_params(&untyped_params);
-    let result_type = extract_function::get_result_type(&function);
+    let result_type = signature.output;
+    println!("derived tokens initiated");
 
     // todo extract any docs from passed function and put into fn wrapper
 
@@ -52,6 +56,8 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         .await
     };
 
+    println!("server code generated");
+
     let main_file = quote! {
         use actix_web::{web, HttpResponse, Result};
         #sanitized_file
@@ -68,21 +74,27 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         }
     };
 
+    println!("application code generated");
+
     // copy all files in repo into cache
     let function_cache_proj_path = CACHE_PATH.join(function_name);
     fs::create_dir_all(function_cache_proj_path).unwrap();
     unimplemented!();
+    println!("source project copied");
 
     // modify cargo.toml (edit package info & add actix + json_serde deps)
     unimplemented!();
+    println!("source project generated");
 
     // build project and give helpful compile-time errors
     build_project::make_executable(&function_cache_proj_path, None);
+    println!("project built");
 
     // compress project source files
     let project_source_binary = extract_function::bin_vector_to_literal_tokens(
         extract_function::make_compressed_proj_src(&function_cache_proj_path)
     );
+    println!("project compressed");
 
     let declare_and_dispatch = quote! {
         extern crate turbolift;
@@ -99,6 +111,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             serde_json::from_str(&resp_str)
         }
     };
+    println!("declare and dispatch code generated");
     declare_and_dispatch.into()
 }
 
