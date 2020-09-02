@@ -13,9 +13,10 @@ use turbolift::CACHE_PATH;
 
 #[proc_macro_attribute]
 pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenStream {
-    println!("in on");
+    // convert proc_macro::TokenStream to proc_macro2::TokenStream
     let distribution_platform = TokenStream2::from(distribution_platform_);
     let function = TokenStream2::from(function_);
+
     // generate derived syntax
     let signature = extract_function::get_fn_signature(function.clone());
     let function_name = signature.ident.to_string();
@@ -32,37 +33,17 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
     // read current file to access imports and local functions
     let sanitized_file = extract_function::get_sanitized_file(&function);
+    // todo make code below hygienic in case sanitized_file also imports from actix_web
+    let main_file = quote! {
+        use actix_web::{web, HttpResponse, Result};
+        #sanitized_file
 
-    let wrapper_fn = quote! {
         async fn turbolift_wrapper(path: web::Path<(#param_types)>) -> Result<HttpResponse> {
             Ok(
                 HttpResponse::Ok()
                     .json(#function_name(#unpacked_path_params))
             )
         }
-    };
-
-    let server = quote! {
-        HttpServer::new(
-            ||
-                App::new()
-                    .route(
-                        "/" + #function_name + "/" + #params_as_path,
-                        web::to(wrapper)
-                    )
-        )
-        .bind(ip_and_port)?
-        .run()
-        .await
-    };
-
-    println!("server code generated");
-
-    let main_file = quote! {
-        use actix_web::{web, HttpResponse, Result};
-        #sanitized_file
-
-        #wrapper_fn
 
         #[actix_rt::main]
         async fn main() -> std::io::Result<()> {
@@ -70,11 +51,21 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
             let args: Vec<String> = std::env::args().collect();
             let ip_and_port = &args[1];
-            #server
+            HttpServer::new(
+                ||
+                    App::new()
+                        .route(
+                            "/" + #function_name + "/" + #params_as_path,
+                            web::to(wrapper)
+                        )
+            )
+            .bind(ip_and_port)?
+            .run()
+            .await
         }
     };
 
-    println!("application code generated");
+    println!("application code generated: {}", main_file.to_string());
 
     // copy all files in repo into cache
     let function_cache_proj_path = CACHE_PATH.join(function_name);

@@ -10,6 +10,8 @@ use syn;
 use quote::ToTokens;
 
 use crate::distributed_platform::DistributionResult;
+use syn::spanned::Spanned;
+use syn::export::TokenStream2;
 
 type TypedParams = syn::punctuated::Punctuated<syn::FnArg, syn::Token![,]>;
 type UntypedParams = syn::punctuated::Punctuated<Box<syn::Pat>, syn::Token![,]>;
@@ -94,7 +96,38 @@ pub fn params_json_vec(
 }
 
 pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
-    unimplemented!()
+    let span = function.span();
+    let path = span.source_file().path();
+    let start_line = span.start().line -2; // todo HACK func def can be more than one line
+    let end_line = span.end().line;
+
+    // generate a file with everything
+    let file_contents = std::fs::read_to_string(path).unwrap();
+
+    // remove targeted function definition
+    let file_contents_without_target_function = {
+        type Line = String;
+        let mut file_lines: Vec<Line> = file_contents
+            .lines()
+            .map(|v| v.to_string())
+            .collect();
+        println!("draining lines: {}..{}", start_line, end_line);
+        println!("{}", file_lines.len());
+        file_lines.drain(start_line..end_line);
+        println!("{}", file_lines.len());
+        file_lines
+            .join("\n")
+    };
+
+    // remove main function if it exists
+    let sanitized_string = {
+        // todo handle if the main function is decorated
+        // todo remove main function instead of just mangling it
+        let main_definition = "fn main()";
+        file_contents_without_target_function.replace(main_definition, "fn _super_main()")
+    };
+    println!("sanitized string: {}", sanitized_string);
+    TokenStream2::from_str(&sanitized_string).unwrap()
 }
 
 pub fn unpack_path_params(untyped_params: &UntypedParams) -> TokenStream {
