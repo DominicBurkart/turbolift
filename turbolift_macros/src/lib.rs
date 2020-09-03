@@ -38,34 +38,34 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let sanitized_file = extract_function::get_sanitized_file(&function);
     // todo make code below hygienic in case sanitized_file also imports from actix_web
     let main_file = quote! {
-        use actix_web::{web, HttpResponse, Result};
-        #sanitized_file
+use actix_web::{web, HttpResponse, Result};
+#sanitized_file
 
-        async fn turbolift_wrapper(path: web::Path<(#param_types)>) -> Result<HttpResponse> {
-            Ok(
-                HttpResponse::Ok()
-                    .json(#function_name(#unpacked_path_params))
-            )
-        }
+async fn turbolift_wrapper(path: web::Path<(#param_types)>) -> Result<HttpResponse> {
+    Ok(
+        HttpResponse::Ok()
+            .json(#function_name(#unpacked_path_params))
+    )
+}
 
-        #[actix_rt::main]
-        async fn main() -> std::io::Result<()> {
-            use actix_web::{App, HttpServer};
+#[actix_rt::main]
+async fn main() -> std::io::Result<()> {
+    use actix_web::{App, HttpServer};
 
-            let args: Vec<String> = std::env::args().collect();
-            let ip_and_port = &args[1];
-            HttpServer::new(
-                ||
-                    App::new()
-                        .route(
-                            "/" + #function_name_string + "/" + #params_as_path,
-                            web::to(wrapper)
-                        )
-            )
-            .bind(ip_and_port)?
-            .run()
-            .await
-        }
+    let args: Vec<String> = std::env::args().collect();
+    let ip_and_port = &args[1];
+    HttpServer::new(
+        ||
+            App::new()
+                .route(
+                    "/" + #function_name_string + "/" + #params_as_path,
+                    web::to(wrapper)
+                )
+    )
+    .bind(ip_and_port)?
+    .run()
+    .await
+}
     };
 
     // copy all files in repo into cache

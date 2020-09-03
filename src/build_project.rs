@@ -15,7 +15,7 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> DistributionRe
 
     // add deps
     let new_deps = vec![
-        ("actix", "0.9"),
+        ("actix-web", "2.0"),
         ("serde_json", "1")
     ];
     let mut deps = match parsed_toml.dependencies {
