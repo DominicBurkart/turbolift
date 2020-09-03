@@ -116,6 +116,8 @@ details.
 - (other targets WIP, starting with Docker Swarm)
 
 ## Current Limitations
+- *Instability. because of reliance on unstable proc_macro::Span features, all programs using turbolift need to 
+be built with an unstable nightly compiler flag (e.g. `RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build`)* ([tracking issue](https://github.com/rust-lang/rust/issues/54725)).
 - For a function to be distributed, its inputs and outputs have to be serializable with [Serde](https://github.com/serde-rs/serde).
 - Distributed functions cannot be nested in other functions.
 - Distributed functions cannot be methods.
