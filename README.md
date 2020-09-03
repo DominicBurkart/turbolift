@@ -93,23 +93,24 @@ fn main() {
 ```
 
 ### What are the differences?
-- `expensive_calculation` can now be run on any node in the swarm, and 
-every call to the function will trigger a swarm task.
-- `expensive_calculation` now returns a future for `DistributedResult<u32>`,
+- `expensive_calculation` can now be run as a microservice on any node in the swarm,
+and every call to the function will trigger a HTTP request to one of the services.
+- `expensive_calculation` is now async. It returns a `DistributedResult<u32>`,
 instead of directly returning `u32`.
 - note that we switched from a lazy execution scheme (using `map`) to 
 an eager scheme (using a loop), so that tasks were dispatched to the 
 distribution platform as soon as possible.
 
 ## Distribution as an afterthought.
-By distributing functions using 
-a simple macro, you can organize your project based on the application 
-logic, instead of structuring your code based on where it will run. This:
+Turbolift allows developers to turn normal rust functions into distributed services 
+ just by tagging them with a macro. This:
 - lowers the barrier of entry for distributing a program.
 - decreases tech debt and switching costs associated with distribution.
 - lets you organize your project according to application logic, not orchestration 
 details.
 
+This architecture is of course not optimal for all projects, but can be useful 
+for certain applications, especially computation-heavy batch jobs.
 
 ## Supported Distribution Platforms
 - local queue 
