@@ -119,6 +119,9 @@ for certain applications, especially computation-heavy batch jobs.
 ## Current Limitations
 - *Instability. because of reliance on unstable proc_macro::Span features, all programs using turbolift need to 
 be built with an unstable nightly compiler flag (e.g. `RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build`)* ([tracking issue](https://github.com/rust-lang/rust/issues/54725)).
+- Functions are assumed to be pure (lacking side-effects such as 
+writing to the file system or mutation of a global variable). 
+*Today, this is not enforced by the code.* 
 - For a function to be distributed, its inputs and outputs have to be serializable with [Serde](https://github.com/serde-rs/serde).
 - Distributed functions cannot be nested in other functions.
 - Distributed functions cannot be methods.
@@ -129,9 +132,6 @@ in `main.rs`.
 - Unused functions that have been marked with the `on` macro will still be 
 compiled for distribution, even if eventually the linker will then 
 remove the completed binary and distribution code.
-- Functions are assumed to be pure (lacking side-effects such as 
-writing to the file system or mutation of a global variable). 
-*Today, this is not enforced by the code.* 
 - *Turbolift doesn't match the cargo compilation settings yet.*
 
 ## Notes

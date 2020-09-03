@@ -31,7 +31,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let params_vec = extract_function::params_json_vec(untyped_params.clone());
     let unpacked_path_params = extract_function::unpack_path_params(&untyped_params);
     let result_type = signature.output;
-    println!("derived tokens initiated");
 
     // todo extract any docs from passed function and put into fn wrapper
 
@@ -69,8 +68,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         }
     };
 
-    println!("application code generated: {}", main_file.to_string());
-
     // copy all files in repo into cache
     let function_cache_proj_path = CACHE_PATH.join(function_name_string.clone());
     fs::create_dir_all(function_cache_proj_path.clone()).unwrap();
@@ -88,7 +85,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             overwrite: true,
             ..Default::default()
         }
-    ).unwrap();
+    ).expect("error copying items to build cache");
 
     // edit project main file
     let target_main_file = function_cache_proj_path
@@ -97,24 +94,21 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     fs::write(
         target_main_file,
         main_file.to_string()
-    ).unwrap();
+    ).expect("error editing project main.rs");
 
     // modify cargo.toml (edit package info & add actix + json_serde deps)
     build_project::edit_cargo_file(
         &function_cache_proj_path.join("cargo.toml"),
         &function_name_string
-    );
-    println!("source project generated");
+    ).expect("error editing cargo file");
 
     // build project and give helpful compile-time errors
-    build_project::make_executable(&function_cache_proj_path, None);
-    println!("project built");
+    build_project::make_executable(&function_cache_proj_path, None).expect("error building function");
 
     // compress project source files
     let project_source_binary = extract_function::bin_vector_to_literal_tokens(
         extract_function::make_compressed_proj_src(&function_cache_proj_path)
     );
-    println!("project compressed");
 
     let declare_and_dispatch = quote! {
         extern crate turbolift;
@@ -131,7 +125,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             serde_json::from_str(&resp_str)
         }
     };
-    println!("declare and dispatch code generated");
     declare_and_dispatch.into()
 }
 
