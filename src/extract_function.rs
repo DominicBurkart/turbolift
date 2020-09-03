@@ -104,17 +104,14 @@ pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
     // generate a file with everything
     let file_contents = std::fs::read_to_string(path).unwrap();
 
-    // remove targeted function definition
+    // remove macro definition
     let file_contents_without_target_function = {
         type Line = String;
         let mut file_lines: Vec<Line> = file_contents
             .lines()
             .map(|v| v.to_string())
             .collect();
-        println!("draining lines: {}..{}", start_line, end_line);
-        println!("{}", file_lines.len());
-        file_lines.drain(start_line..end_line);
-        println!("{}", file_lines.len());
+        file_lines.drain(start_line..start_line+1);
         file_lines
             .join("\n")
     };
@@ -126,7 +123,6 @@ pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
         let main_definition = "fn main()";
         file_contents_without_target_function.replace(main_definition, "fn _super_main()")
     };
-    println!("sanitized string: {}", sanitized_string);
     TokenStream2::from_str(&sanitized_string).unwrap()
 }
 

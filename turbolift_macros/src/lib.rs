@@ -5,9 +5,12 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use std::fs;
+use std::path::{Path, PathBuf};
 
 use tar::Builder;
 use quote::quote;
+use fs_extra;
+
 use turbolift::{build_project, extract_function};
 use turbolift::CACHE_PATH;
 
@@ -19,7 +22,8 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
     // generate derived syntax
     let signature = extract_function::get_fn_signature(function.clone());
-    let function_name = signature.ident.to_string();
+    let function_name = signature.ident;
+    let function_name_string = function_name.to_string();
     let typed_params = signature.inputs;
     let untyped_params = extract_function::to_untyped_params(typed_params.clone());
     let params_as_path = extract_function::to_path_params(untyped_params.clone());
@@ -55,7 +59,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                 ||
                     App::new()
                         .route(
-                            "/" + #function_name + "/" + #params_as_path,
+                            "/" + #function_name_string + "/" + #params_as_path,
                             web::to(wrapper)
                         )
             )
@@ -68,13 +72,38 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     println!("application code generated: {}", main_file.to_string());
 
     // copy all files in repo into cache
-    let function_cache_proj_path = CACHE_PATH.join(function_name);
-    fs::create_dir_all(function_cache_proj_path).unwrap();
-    unimplemented!();
-    println!("source project copied");
+    let function_cache_proj_path = CACHE_PATH.join(function_name_string.clone());
+    fs::create_dir_all(function_cache_proj_path.clone()).unwrap();
+    let files_to_copy: Vec<PathBuf> = fs::read_dir(".")
+        .unwrap()
+        .map(
+            |res| res.unwrap().path()
+        ).filter(
+            |path| !path.to_string_lossy().contains(".turbolift") // todo hack
+        ).collect();
+    fs_extra::copy_items(
+        &files_to_copy,
+        function_cache_proj_path.clone(),
+        &fs_extra::dir::CopyOptions {
+            overwrite: true,
+            ..Default::default()
+        }
+    ).unwrap();
+
+    // edit project main file
+    let target_main_file = function_cache_proj_path
+        .join("src")
+        .join("main.rs");
+    fs::write(
+        target_main_file,
+        main_file.to_string()
+    ).unwrap();
 
     // modify cargo.toml (edit package info & add actix + json_serde deps)
-    unimplemented!();
+    build_project::edit_cargo_file(
+        &function_cache_proj_path.join("cargo.toml"),
+        &function_name_string
+    );
     println!("source project generated");
 
     // build project and give helpful compile-time errors
@@ -92,12 +121,12 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         extern crate serde_json;
 
         // register binary with distribution platform
-        #distribution_platform.declare(#function_name, #project_source_binary);
+        #distribution_platform.declare(#function_name_string, #project_source_binary);
 
         // dispatch call and process response
         async fn #function_name(#typed_params) -> turbolift::distributed_platform::DistributionResult<#result_type> {
             let params = #params_vec.join("/");
-            let resp_str = #distribution_platform.dispatch(#function_name, params).await?;
+            let resp_str = #distribution_platform.dispatch(#function_name_string, params).await?;
             // ^ todo change dispatch to return a stream/iterator
             serde_json::from_str(&resp_str)
         }
