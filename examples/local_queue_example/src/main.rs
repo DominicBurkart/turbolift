@@ -1,9 +1,17 @@
+use std::sync::Mutex;
+
+extern crate proc_macro;
 use futures::executor::block_on;
 use futures::future::try_join_all;
-use turbolift_macros::on;
 use turbolift::local_queue::LocalQueue;
+use turbolift::on;
+use rand;
+#[macro_use]
+extern crate lazy_static;
 
-const LOCAL: LocalQueue = Default::default();
+lazy_static! {
+    static ref LOCAL: Mutex<LocalQueue> = Mutex::new(LocalQueue::new());
+}
 
 #[on(LOCAL)]
 fn identity(b: bool) -> bool {
@@ -14,8 +22,8 @@ fn main() {
     let input = vec![rand::random(), rand::random(), rand::random()];
     let futures = {
         let mut v = Vec::new();
-        for b in input {
-            v.push(identity(b));
+        for b in &input {
+            v.push(identity(*b));
         }
         v
     };
@@ -32,8 +40,8 @@ mod tests {
         let input = vec![rand::random(), rand::random(), rand::random()];
         let futures = {
             let mut v = Vec::new();
-            for b in input {
-                v.push(identity(b));
+            for b in &input {
+                v.push(identity(*b));
             }
             v
         };

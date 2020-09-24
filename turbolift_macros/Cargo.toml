@@ -15,4 +15,8 @@ tar = "0.4"
 lazy_static = "1.4"
 proc-macro2 = "1"
 fs_extra = "1"
-turbolift = { path=".." }
+brotli2 = "0.3.2"
+data-encoding = "2"
+cached = "0.19"
+rust-embed= { version="5", features=["debug-embed", "compression"]}
+turbolift_internals = { path="../turbolift_internals" }

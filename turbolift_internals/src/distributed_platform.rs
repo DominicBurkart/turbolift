@@ -18,5 +18,5 @@ pub trait DistributionPlatform {
     fn declare(&mut self, function_name: &str, project_binary: Vec<u8>);
 
     // dispatch params to a function
-    async fn dispatch(&mut self, function_name: String, params: ArgsString) -> JsonResponse;
+    async fn dispatch(&mut self, function_name: &str, params: ArgsString) -> DistributionResult<JsonResponse>;
 }

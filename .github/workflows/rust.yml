@@ -20,6 +20,6 @@ jobs:
       run: cargo fmt
     - name: Clippy
       run: cargo clippy -- -D warnings
-    - name: Test
-      run: cargo test
+    - name: Local Queue
+      run: cd examples/local_queue_example && RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test
 

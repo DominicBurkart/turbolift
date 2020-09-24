@@ -9,27 +9,72 @@ use tar::{Builder, Archive};
 use syn;
 use quote::ToTokens;
 
-use crate::distributed_platform::DistributionResult;
 use syn::spanned::Spanned;
 use syn::export::TokenStream2;
+use data_encoding::BASE64;
+
+use crate::distributed_platform::DistributionResult;
+use crate::CACHE_PATH;
 
 type TypedParams = syn::punctuated::Punctuated<syn::FnArg, syn::Token![,]>;
 type UntypedParams = syn::punctuated::Punctuated<Box<syn::Pat>, syn::Token![,]>;
 type ParamTypes = syn::punctuated::Punctuated<Box<syn::Type>, syn::Token![,]>;
 
-lazy_static! {
-    /// CACHE_PATH is the directory where turbolift stores derived projects,
-    /// their dependencies, and their build artifacts. Each distributed
-    /// function has its own project subdirectory in CACHE_PATH.
-    pub static ref CACHE_PATH: &'static Path  = Path::new(".turbolift");
-}
-
-pub fn get_fn_signature(function: TokenStream) -> syn::Signature {
+pub fn get_fn_item(function: TokenStream) -> syn::ItemFn {
     match syn::parse2(function).unwrap() {
         syn::Item::Fn(fn_item) => {
-            fn_item.sig
+            fn_item
         },
         _ => panic!("token stream does not represent function.")
+    }
+}
+
+/// wraps any calls to the target function from within its own service with the return type as
+/// if the call was made from outside the service. This is one way to allow compilation while
+/// references to the target function are in the service codebase.
+pub fn make_dummy_function(function: syn::ItemFn, redirect_fn_name: &str, untyped_params: UntypedParams) -> syn::ItemFn {
+    let redirect_statement: syn::Stmt = syn::parse_str(
+        &format!(
+            "return Ok({}({}));",
+            redirect_fn_name,
+            untyped_params.to_token_stream().to_string()
+        )
+    ).unwrap();
+    let output =
+        match function.sig.output {
+            syn::ReturnType::Default => syn::ReturnType::Type(
+                Default::default(),
+                Box::new(syn::Type::Verbatim(TokenStream2::from_str("()").unwrap()))
+            ),
+            syn::ReturnType::Type(arrow_token, return_box) => syn::ReturnType::Type(
+                arrow_token,
+                Box::new(
+                    syn::Type::Verbatim(
+                        TokenStream2::from_str(
+                            &format!(
+                                "turbolift::DistributionResult<{}>",
+                                return_box.to_token_stream().to_string()
+                            )
+                        ).unwrap()
+                    )
+                )
+            )
+        };
+    syn::ItemFn {
+        block: Box::new(
+            syn::Block {
+                brace_token: syn::token::Brace {
+                    span: redirect_statement.span()
+                },
+                stmts: vec![redirect_statement]
+            }
+        ),
+        sig: syn::Signature {
+            asyncness: Some(Default::default()),
+            output,
+            ..function.sig
+        },
+        ..function
     }
 }
 
@@ -84,7 +129,7 @@ pub fn params_json_vec(
         .into_iter()
         .map(
             |pat|
-                "serde_json::to_string(".to_string() + &pat.into_token_stream().to_string() + ")"
+                "turbolift::serde_json::to_string(&".to_string() + &pat.into_token_stream().to_string() + ").unwrap()"
         )
         .collect();
 
@@ -104,24 +149,26 @@ pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
     // generate a file with everything
     let file_contents = std::fs::read_to_string(path).unwrap();
 
-    // remove macro definition
-    let file_contents_without_target_function = {
+    // remove target function
+    let target_function_removed = {
         type Line = String;
         let mut file_lines: Vec<Line> = file_contents
             .lines()
             .map(|v| v.to_string())
             .collect();
-        file_lines.drain(start_line..start_line+1);
+        file_lines.drain(start_line..end_line);
         file_lines
             .join("\n")
     };
 
-    // remove main function if it exists
     let sanitized_string = {
+        // remove main function if it exists
         // todo handle if the main function is decorated
         // todo remove main function instead of just mangling it
         let main_definition = "fn main()";
-        file_contents_without_target_function.replace(main_definition, "fn _super_main()")
+        target_function_removed.replace(main_definition, "fn _super_main()")
+
+
     };
     TokenStream2::from_str(&sanitized_string).unwrap()
 }
@@ -137,8 +184,30 @@ pub fn unpack_path_params(untyped_params: &UntypedParams) -> TokenStream {
 pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     let mut cursor = Cursor::new(Vec::new());
     let mut archive = Builder::new(cursor);
-    archive.append_dir_all("", dir).unwrap();
-    archive.finish().unwrap();
+
+    let entries = fs::read_dir(dir)
+        .unwrap()
+        .filter_map(Result::ok); // ignore read errors
+    for entry in entries {
+        let is_dir = entry.metadata().unwrap().is_dir();
+        if entry.file_name().to_str() == Some("target") && is_dir {
+            // only pass release (if it exists)
+            let release_deps = entry.path().join("release/deps");
+            if release_deps.exists() {
+                archive.append_dir_all("target/release", release_deps).unwrap();
+            }
+        } else {
+            if is_dir {
+                archive.append_dir_all(entry.file_name(), entry.path()).unwrap();
+            } else {
+                let mut f = fs::File::open(entry.path()).unwrap();
+                archive.append_file(entry.file_name(), &mut f).unwrap();
+            }
+        }
+    }
+    archive
+        .finish()
+        .unwrap();
     archive
         .into_inner()
         .unwrap()
@@ -151,17 +220,10 @@ pub fn decompress_proj_src(src: Vec<u8>, dest: &Path) -> DistributionResult<()> 
     Ok(archive.unpack(dest)?)
 }
 
-pub fn bin_vector_to_literal_tokens(vector: Vec<u8>) -> TokenStream {
-    let mut literal = String::new();
-    literal.push_str("vec![");
-    let mut first = true;
-    for value in vector {
-        if first {
-            first = false;
-        } else {
-            literal.push_str(",");
-        }
-        literal.push_str(&value.to_string());
+/// assumes input is a function, not a closure.
+pub fn get_result_type(output: &syn::ReturnType) -> TokenStream2 {
+    match output {
+        syn::ReturnType::Default => TokenStream2::from_str("()").unwrap(),
+        syn::ReturnType::Type(_right_arrow, boxed_type) => boxed_type.to_token_stream()
     }
-    literal.parse().unwrap()
 }

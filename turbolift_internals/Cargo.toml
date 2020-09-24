@@ -1,0 +1,31 @@
+[package]
+name = "turbolift_internals"
+version = "0.1.0"
+authors = ["Dominic Burkart <1351120+DominicBurkart@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+syn = {version = "1", features=["full"] }
+quote = "1"
+serde = "1"
+serde_json = "1"
+brotli2 = "0.3.2"
+data-encoding = "2"
+futures = "0.3"
+proc-macro2 = { version = "1.0", features = ["span-locations"]}
+tar = "0.4"
+toml = "0.5"
+cargo-toml2 = "1"
+tempfile = "3.1"
+tokio = { version = "0.2",    features = ["full"] }
+reqwest = { version = "0.10", features = ["json", "brotli", "stream"] }
+cute = "0.3"
+rand = "0.7"
+async-trait = "0.1"
+url = "2"
+lazy_static = "1"
+anyhow = "1"
+cached = "0.19"
+rust-embed= { version="5", features=["debug-embed", "compression"]}

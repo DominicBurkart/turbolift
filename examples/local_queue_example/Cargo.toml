@@ -9,5 +9,9 @@ edition = "2018"
 [dependencies]
 rand = "0.7"
 futures = "0.3"
+lazy_static = "1"
 turbolift = { path="../../" }
-turbolift_macros = { path="../../turbolift_macros" }
+
+# these are dependencies that need to be bundled into turbolift, but debugging how to reexport proc macros is hard.
+cached = "0.19"
+rust-embed= { version="5", features=["debug-embed", "compression"]}
