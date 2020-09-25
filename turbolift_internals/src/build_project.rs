@@ -16,7 +16,7 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
         .parent()
         .unwrap()
         .join(".local_deps");
-    fs::create_dir_all(&relative_local_deps_cache);
+    fs::create_dir_all(&relative_local_deps_cache)?;
     let local_deps_cache = relative_local_deps_cache.canonicalize()?;
 
     // change name
@@ -124,8 +124,10 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
                 _ => ()
             }
         );
+    println!("ok.... ");
     parsed_toml.dependencies = Some(deps);
     cargo_toml2::to_path(cargo_path, parsed_toml)?;
+    println!("huh.... ");
     Ok(())
 }
 

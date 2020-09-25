@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use proc_macro2::TokenStream;
 use proc_macro;
 use std::io::Cursor;
@@ -15,6 +15,7 @@ use data_encoding::BASE64;
 
 use crate::distributed_platform::DistributionResult;
 use crate::CACHE_PATH;
+use std::collections::VecDeque;
 
 type TypedParams = syn::punctuated::Punctuated<syn::FnArg, syn::Token![,]>;
 type UntypedParams = syn::punctuated::Punctuated<Box<syn::Pat>, syn::Token![,]>;
@@ -185,26 +186,59 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     let mut cursor = Cursor::new(Vec::new());
     let mut archive = Builder::new(cursor);
 
-    let entries = fs::read_dir(dir)
+    println!("uwu");
+
+    let mut entries: VecDeque<(PathBuf, std::fs::DirEntry)> = fs::read_dir(dir)
         .unwrap()
-        .filter_map(Result::ok); // ignore read errors
-    for entry in entries {
-        let is_dir = entry.metadata().unwrap().is_dir();
-        if entry.file_name().to_str() == Some("target") && is_dir {
-            // only pass release (if it exists)
+        .filter_map(Result::ok)
+        .map(|entry| (dir.to_path_buf(), entry))
+        .collect(); // ignore read errors
+
+    while !entries.is_empty() {
+        let (entry_parent, entry) = entries.pop_front().unwrap();
+        let metadata = entry.metadata().unwrap();
+        if entry.file_name().to_str() == Some("target") && metadata.is_dir() {
+            // in target directories, only pass release (if it exists)
             let release_deps = entry.path().join("release/deps");
             if release_deps.exists() {
-                archive.append_dir_all("target/release", release_deps).unwrap();
+                println!("entry target: {:?}", entry.path());
+                let path = {
+                    if entry_parent == dir {
+                        PathBuf::from_str("target/release").unwrap()
+                    } else {
+                        entry_parent
+                            .join("target")
+                            .join("release")
+                    }
+                };
+                archive.append_dir_all(path, release_deps).unwrap();
             }
         } else {
-            if is_dir {
-                archive.append_dir_all(entry.file_name(), entry.path()).unwrap();
+            if entry.path().is_dir() {
+                // ^ bug: the metadata on symlinks sometimes say that they are not directories,
+                // so we have to metadata.is_dir() || (metadata.file_type().is_symlink() && entry.path().is_dir() )
+                if CACHE_PATH.file_name().unwrap() != &entry.file_name() {
+                    archive.append_dir(
+                        entry.file_name(),
+                        entry.path()
+                    ).unwrap();
+                    entries.extend(
+                        fs::read_dir(entry.path())
+                            .unwrap()
+                            .filter_map(Result::ok)
+                            .map(|child| (entry_parent.join(entry.file_name()), child))
+                    )
+                } else {
+                    // don't include the cache
+                }
             } else {
+                println!("entry file: {:?}", entry.path());
                 let mut f = fs::File::open(entry.path()).unwrap();
                 archive.append_file(entry.file_name(), &mut f).unwrap();
             }
         }
     }
+    println!("finishin");
     archive
         .finish()
         .unwrap();
@@ -214,8 +248,8 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
         .into_inner()
 }
 
-pub fn decompress_proj_src(src: Vec<u8>, dest: &Path) -> DistributionResult<()> {
-    let cursor = Cursor::new(src);
+pub fn decompress_proj_src(src: &[u8], dest: &Path) -> DistributionResult<()> {
+    let cursor = Cursor::new(src.to_owned());
     let mut archive = Archive::new(cursor);
     Ok(archive.unpack(dest)?)
 }

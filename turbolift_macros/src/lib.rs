@@ -21,6 +21,7 @@ const COMPRESSION_LEVEL: u32 = 11;
 
 #[proc_macro_attribute]
 pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenStream {
+    println!("started");
     // convert proc_macro::TokenStream to proc_macro2::TokenStream
     let distribution_platform = TokenStream2::from(distribution_platform_);
     let function = TokenStream2::from(function_);
@@ -90,13 +91,16 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
     // copy all files in repo into cache
     let function_cache_proj_path = CACHE_PATH.join(original_target_function_name.clone());
+    println!("create_dir_all");
     fs::create_dir_all(function_cache_proj_path.clone()).unwrap();
+    println!("create_dir_all ran");
     let files_to_copy: Vec<PathBuf> = fs::read_dir(".")
-        .unwrap()
+        .expect("could not read dir")
         .map(
-            |res| res.unwrap().path()
+            |res| res.expect("could not read entry").path()
         ).filter(
-            |path| !path.to_string_lossy().contains(".turbolift") // todo hack
+            |path|
+                path.file_name() != CACHE_PATH.file_name()
         ).filter(
             |path| path.to_str() != Some("./target")
             // todo we could shorten compile time by sharing deps in ./target,
@@ -121,19 +125,27 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         main_file.to_string()
     ).expect("error editing project main.rs");
 
+    println!("going to edit_cargo_file");
+
     // modify cargo.toml (edit package info & add actix + json_serde deps)
     build_project::edit_cargo_file(
         &function_cache_proj_path.join("cargo.toml"),
         &original_target_function_name
     ).expect("error editing cargo file");
 
+    println!("linting");
+
     // lint project
     build_project::lint(&function_cache_proj_path).expect("linting error");
+
+    println!("linting done, fixing");
 
     // check project and give errors
     build_project::fix(
         &function_cache_proj_path
     ).expect("error checking/fixing function");
+
+    println!("making executable");
 
     // build project so that the deps are packaged, and if the worker has the same architecture,
     // they can directly use the compiled version without having to recompile.
@@ -142,39 +154,34 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         None
     ).expect("error building function");
 
+    println!("executable made");
+
     // compress project source files
-    let bin_dir = function_cache_proj_path.join(".turbolift_bundled");
-    fs::create_dir_all(&bin_dir).unwrap();
     let project_source_binary = {
         let tar = extract_function::make_compressed_proj_src(&function_cache_proj_path);
-        fs::write(&bin_dir.join("source.tar"), tar).unwrap();
+        let tar_file = CACHE_PATH.join(function_name_string.clone() + "_source.tar");
+        fs::write(&tar_file, tar).expect("failure writing bin");
         TokenStream2::from_str(
             &format!(
-                "
-                    (|| {{
-                        use rust_embed::{{RustEmbed, Rust1Embed}};
-                        #[derive(Rust1Embed)]
-                        #[folder = \"{}\"]
-                        struct Asset;
-
-                        <Asset as RustEmbed>::get(\"source.tar\")
-                            .unwrap()
-                            .into_owned()
-                    }})()
-                ",
-                bin_dir.to_str().unwrap()
+                "std::include_bytes!(\"{}\")",
+                tar_file
+                    .canonicalize()
+                    .expect("error canonicalizing tar file location")
+                    .to_str()
+                    .expect("failure converting file path to str")
             )
-        ).unwrap()
+        ).expect("syntax error while embedding project tar.")
     };
+
+    println!("project source binary generated");
 
     // generate API function for the microservice
     let declare_and_dispatch = quote! {
         extern crate turbolift;
-        extern crate turbolift_macros;
 
         // dispatch call and process response
         async fn #original_target_function_ident(#typed_params) ->
-            turbolift::distributed_platform::DistributionResult<#result_type> {
+            turbolift::DistributionResult<#result_type> {
             use turbolift::DistributionPlatform;
             use cached::proc_macro::cached;
 
@@ -202,6 +209,8 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             Ok(turbolift::serde_json::from_str(&resp_string)?)
         }
     };
+    println!("dispatch generated");
+    println!("dispatch: {}", declare_and_dispatch.clone().into_token_stream().to_string());
     declare_and_dispatch.into()
 }
 

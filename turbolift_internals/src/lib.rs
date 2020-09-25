@@ -8,6 +8,7 @@ pub mod extract_function;
 pub mod utils;
 pub mod local_queue;
 pub mod kubernetes;
+pub use serde_json;
 
 lazy_static! {
     /// CACHE_PATH is the directory where turbolift stores derived projects,

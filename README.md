@@ -40,6 +40,8 @@ in `main.rs`.
 compiled for distribution, even if eventually the linker will then 
 remove the completed binary and distribution code.
 - *Turbolift doesn't match the cargo compilation settings for microservices yet.*
+- projects can have relative local dependencies listing in the cargo manifest, but those dependencies themselves 
+should not have relative local dependencies prone to breaking.
 
 ## Project Goals
 - [ ] support kubernetes.

@@ -9,7 +9,6 @@ use std::sync::{Arc, Mutex};
 use url::Url;
 use quote::quote;
 use syn::{self, DeriveInput};
-use tempfile;
 use reqwest::{self, Result};
 use async_trait::async_trait;
 
@@ -35,12 +34,14 @@ impl LocalQueue {
 #[async_trait]
 impl DistributionPlatform for LocalQueue {
     /// declare a function. Runs once.
-    fn declare(&mut self, function_name: &str, project_binary: Vec<u8>) {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let temp_dir_path = temp_dir.path();
-        decompress_proj_src(project_binary, temp_dir_path).unwrap();
+    fn declare(&mut self, function_name: &str, project_binary: &[u8]) {
+        let build_dir = Path::new(".")
+            .join(".turbolift")
+            .join(".worker_build_cache");
+        decompress_proj_src(project_binary, build_dir.as_path()).unwrap();
         let function_executable = Path::new(".").join(function_name);
-        make_executable(temp_dir_path, Some(&function_executable)).unwrap();
+        make_executable(build_dir.as_path(), Some(&function_executable)).unwrap();
+        std::fs::remove_dir_all(build_dir).unwrap()
     }
 
     // dispatch params to a function. Runs each time the function is called.

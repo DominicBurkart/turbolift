@@ -34,7 +34,7 @@ impl LocalQueue {
 
 #[async_trait]
 impl DistributionPlatform for LocalQueue {
-    fn declare(&mut self, function_name: &str, project_binary: Vec<u8>) {
+    fn declare(&mut self, function_name: &str, project_binary: &[u8]) {
         unimplemented!()
     }
 
