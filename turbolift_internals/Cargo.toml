@@ -20,12 +20,13 @@ toml = "0.5"
 cargo-toml2 = "1"
 tempfile = "3.1"
 tokio = { version = "0.2",    features = ["full"] }
-reqwest = { version = "0.10", features = ["json", "brotli", "stream"] }
+surf = "1.0.3"
 cute = "0.3"
 rand = "0.7"
-async-trait = "0.1"
 url = "2"
 lazy_static = "1"
 anyhow = "1"
 cached = "0.19"
 rust-embed= { version="5", features=["debug-embed", "compression"]}
+async-std = "1.6"
+async-trait = "0.1"

@@ -10,6 +10,7 @@ edition = "2018"
 rand = "0.7"
 futures = "0.3"
 lazy_static = "1"
+async-std = "1"
 turbolift = { path="../../" }
 
 # these are dependencies that need to be bundled into turbolift, but debugging how to reexport proc macros is hard.

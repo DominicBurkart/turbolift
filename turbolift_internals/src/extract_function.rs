@@ -191,13 +191,13 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     let mut entries: VecDeque<(PathBuf, std::fs::DirEntry)> = fs::read_dir(dir)
         .unwrap()
         .filter_map(Result::ok)
-        .map(|entry| (dir.to_path_buf(), entry))
+        .map(|entry| (dir.file_name().unwrap().into(), entry))
         .collect(); // ignore read errors
 
+    archive.append_dir(dir.file_name().unwrap(), dir).unwrap();
     while !entries.is_empty() {
         let (entry_parent, entry) = entries.pop_front().unwrap();
-        let metadata = entry.metadata().unwrap();
-        if entry.file_name().to_str() == Some("target") && metadata.is_dir() {
+        if entry.file_name().to_str() == Some("target") && entry.metadata().unwrap().is_dir() {
             // in target directories, only pass release (if it exists)
             let release_deps = entry.path().join("release/deps");
             if release_deps.exists() {
@@ -214,19 +214,20 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
                 archive.append_dir_all(path, release_deps).unwrap();
             }
         } else {
+            let entry_path_with_parent = entry_parent.join(entry.file_name());
             if entry.path().is_dir() {
                 // ^ bug: the metadata on symlinks sometimes say that they are not directories,
                 // so we have to metadata.is_dir() || (metadata.file_type().is_symlink() && entry.path().is_dir() )
                 if CACHE_PATH.file_name().unwrap() != &entry.file_name() {
                     archive.append_dir(
-                        entry.file_name(),
+                        &entry_path_with_parent,
                         entry.path()
                     ).unwrap();
                     entries.extend(
                         fs::read_dir(entry.path())
                             .unwrap()
                             .filter_map(Result::ok)
-                            .map(|child| (entry_parent.join(entry.file_name()), child))
+                            .map(|child| (entry_path_with_parent.clone(), child))
                     )
                 } else {
                     // don't include the cache
@@ -234,7 +235,7 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
             } else {
                 println!("entry file: {:?}", entry.path());
                 let mut f = fs::File::open(entry.path()).unwrap();
-                archive.append_file(entry.file_name(), &mut f).unwrap();
+                archive.append_file(entry_path_with_parent, &mut f).unwrap();
             }
         }
     }

@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 
 extern crate proc_macro;
-use futures::executor::block_on;
+use async_std::task;
 use futures::future::try_join_all;
 use turbolift::local_queue::LocalQueue;
 use turbolift::on;
@@ -27,8 +27,8 @@ fn main() {
         }
         v
     };
-    let result = block_on(try_join_all(futures)).unwrap();
-    println!("input: {:#?}\nresult: {:#?}", input, result)
+    let output = task::block_on(try_join_all(futures)).unwrap();
+    println!("input: {:#?}\noutput: {:#?}", input, output)
 }
 
 #[cfg(test)]
@@ -37,6 +37,7 @@ mod tests {
 
     #[test]
     fn it_works() {
+        println!("starting test!");
         let input = vec![rand::random(), rand::random(), rand::random()];
         let futures = {
             let mut v = Vec::new();
@@ -45,10 +46,10 @@ mod tests {
             }
             v
         };
-        let result = block_on(try_join_all(futures)).unwrap();
+        let output = task::block_on(try_join_all(futures)).unwrap();
         assert_eq!(
             input,
-            result
+            output
         );
     }
 }

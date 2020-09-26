@@ -101,7 +101,7 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
                     println!("ah");
                     symlink_dir(&canonical, &dep_location)?;
                 }
-                *buf = dep_location;
+                *buf = dep_location.canonicalize().unwrap();
             },
             None => (),
         }
@@ -152,6 +152,7 @@ pub fn lint(proj_path: &Path) -> anyhow::Result<()> {
 }
 
 pub fn make_executable(proj_path: &Path, dest: Option<&Path>) -> anyhow::Result<()> {
+    println!("making executable");
     let status = Command::new("cargo")
         .current_dir(proj_path)
         .args("build --release".split(" "))
@@ -160,27 +161,32 @@ pub fn make_executable(proj_path: &Path, dest: Option<&Path>) -> anyhow::Result<
     if !status.success() {
         return Err(anyhow::anyhow!("cargo build failed with code: {:?}", status.code()));
     }
-    let executable_path = {
-        let cargo_path = proj_path.join("Cargo.toml");
-        let parsed_toml: cargo_toml2::CargoToml = cargo_toml2::from_path(cargo_path)?;
-        let project_name = parsed_toml.package.name;
-        let local_path = "target/release/".to_string() + &project_name;
-        proj_path.join(&local_path)
-    };
     if let Some(destination) = dest {
+        let executable_path = {
+            let cargo_path = proj_path.join("Cargo.toml");
+            let parsed_toml: cargo_toml2::CargoToml = cargo_toml2::from_path(cargo_path)?;
+            let project_name = parsed_toml.package.name;
+            let local_path = "target/release/".to_string() + &project_name;
+            proj_path
+                .canonicalize()
+                .unwrap()
+                .join(&local_path)
+        };
+        println!("generated executable path: {:?} exists: {:?}", executable_path, executable_path.exists());
         fs::rename(&executable_path, destination)?;
+        println!("executable placed in {}", &destination.canonicalize().unwrap().to_str().unwrap());
     }
     Ok(())
 }
 
-pub fn fix(proj_path: &Path) -> anyhow::Result<()> {
+pub fn check(proj_path: &Path) -> anyhow::Result<()> {
     let status = Command::new("cargo")
         .current_dir(proj_path)
-        .args("fix --allow-dirty".split(" "))
+        .args("check".split(" "))
         .status()?;
 
     if !status.success() {
-        return Err(anyhow::anyhow!("cargo fix failed with code: {:?}", status.code()));
+        return Err(anyhow::anyhow!("cargo check failed with code: {:?}", status.code()));
     }
     Ok(())
 }

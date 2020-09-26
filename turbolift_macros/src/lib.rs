@@ -38,7 +38,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let typed_params = signature.inputs;
     let untyped_params = extract_function::to_untyped_params(typed_params.clone());
     let params_as_path = extract_function::to_path_params(untyped_params.clone());
-    let wrapper_route = "/".to_string() + &function_name_string + "/" + &params_as_path;
+    let wrapper_route = "/".to_string() + &original_target_function_name + "/" + &params_as_path;
     let param_types = extract_function::to_param_types(typed_params.clone());
     let params_vec = extract_function::params_json_vec(untyped_params.clone());
     use quote::ToTokens;
@@ -56,13 +56,15 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let sanitized_file = extract_function::get_sanitized_file(&function);
     // todo make code below hygienic in case sanitized_file also imports from actix_web
     let main_file = quote! {
-        use actix_web::{web, HttpResponse, Result};
+        use actix_web::{get, web, HttpResponse, Result};
 
         #sanitized_file
         #dummy_function
         #target_function
 
+        #[get(#wrapper_route)]
         async fn turbolift_wrapper(path: web::Path<(#param_types,)>) -> Result<HttpResponse> {
+            println!("in wrapper");
             Ok(
                 HttpResponse::Ok()
                     .json(#function_name(#unpacked_path_params))
@@ -78,9 +80,8 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             HttpServer::new(
                 ||
                     App::new()
-                        .route(
-                            #wrapper_route,
-                            web::to(turbolift_wrapper)
+                        .service(
+                            turbolift_wrapper
                         )
             )
             .bind(ip_and_port)?
@@ -141,25 +142,27 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     println!("linting done, fixing");
 
     // check project and give errors
-    build_project::fix(
+    build_project::check(
         &function_cache_proj_path
-    ).expect("error checking/fixing function");
+    ).expect("error checking function");
 
     println!("making executable");
 
-    // build project so that the deps are packaged, and if the worker has the same architecture,
-    // they can directly use the compiled version without having to recompile.
-    build_project::make_executable(
-        &function_cache_proj_path,
-        None
-    ).expect("error building function");
+    // // build project so that the deps are packaged, and if the worker has the same architecture,
+    // // they can directly use the compiled version without having to recompile. todo commented
+    // // out because the build artifacts are too large.
+    // build_project::make_executable(
+    //     &function_cache_proj_path,
+    //     None
+    // ).expect("error building function");
 
     println!("executable made");
 
     // compress project source files
     let project_source_binary = {
+        println!("function_cache_proj_path {:?}", &function_cache_proj_path);
         let tar = extract_function::make_compressed_proj_src(&function_cache_proj_path);
-        let tar_file = CACHE_PATH.join(function_name_string.clone() + "_source.tar");
+        let tar_file = CACHE_PATH.join(original_target_function_name.clone() + "_source.tar");
         fs::write(&tar_file, tar).expect("failure writing bin");
         TokenStream2::from_str(
             &format!(
@@ -182,30 +185,30 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         // dispatch call and process response
         async fn #original_target_function_ident(#typed_params) ->
             turbolift::DistributionResult<#result_type> {
+            use std::time::Duration;
             use turbolift::DistributionPlatform;
-            use cached::proc_macro::cached;
+            use turbolift::async_std::task;
+            use turbolift::cached::proc_macro::cached;
 
             // call .declare once by memoizing the call
-            #[cached]
+            #[cached(size=1)]
             fn setup() {
                 #distribution_platform
                     .lock()
                     .unwrap()
-                    .declare(#function_name_string, #project_source_binary);
+                    .declare(#original_target_function_name, #project_source_binary);
             }
             setup();
-
 
             let params = #params_vec.join("/");
 
             let resp_string = #distribution_platform
                 .lock()?
                 .dispatch(
-                    #function_name_string,
+                    #original_target_function_name,
                     params.to_string()
                 ).await?;
-            let response = turbolift::serde_json::from_str(&resp_string)?;
-
+            println!("got response! {:?}", resp_string);
             Ok(turbolift::serde_json::from_str(&resp_string)?)
         }
     };

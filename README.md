@@ -9,9 +9,9 @@
 ## Distribution as an afterthought.
 Turbolift allows developers to turn normal rust functions into distributed services 
  just by tagging them with a macro. This lets you develop in a monolith environment, 
-but benefit from the scalability of microservice architectures. While not a silver 
-bullet, this pattern allows the compiler to help with the "hidden" complexity of connecting
-microservices, which is notoriously difficult to test and reason about.
+but benefit from the scalability of microservice architectures. This pattern allows 
+the compiler to help with the "hidden" complexity of connecting microservices, in 
+exchange for longer compile times and larger dependency caches compared to non-distributed systems.
 
 If you need to build or run your application without distribution, 
 just pass the `local` feature: ```cargo run --features "local"```. The functions tagged for 

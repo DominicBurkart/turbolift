@@ -10,7 +10,6 @@ use url::Url;
 use quote::quote;
 use syn::{self, DeriveInput};
 use tempfile;
-use reqwest::{self, Result};
 use async_trait::async_trait;
 
 use crate::distributed_platform::{DistributionPlatform, DistributionResult, ArgsString, JsonResponse};
@@ -22,7 +21,7 @@ type FunctionName = String;
 
 #[derive(Default)]
 pub struct LocalQueue {
-    fn_name_to_address: HashMap<FunctionName, AddressAndPort>, // todo hardcoded as 127.0.0.1:8088 rn
+    fn_name_to_address: HashMap<FunctionName, AddressAndPort>, // todo hardcoded rn
     fn_name_to_process: HashMap<FunctionName,std::process::Child>
 }
 
@@ -34,7 +33,7 @@ impl LocalQueue {
 
 #[async_trait]
 impl DistributionPlatform for LocalQueue {
-    fn declare(&mut self, function_name: &str, project_binary: &[u8]) {
+    fn declare(&mut self, function_name: &str, project_tar: &[u8]) {
         unimplemented!()
     }
 
