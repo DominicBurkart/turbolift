@@ -1,0 +1,19 @@
+name: docker
+
+on:
+  push
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: docker-practice/actions-setup-docker@master
+      with:
+        docker_channel: nightly
+#        docker_nightly_version: snapshot-20200915
+    - run: |
+        pwd
+        ls -latr .
+        tree
+        docker build -f examples/local_queue_example/Dockerfile -t local_queue_example .
+        docker run local_queue_example

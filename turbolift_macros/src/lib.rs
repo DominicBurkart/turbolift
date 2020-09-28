@@ -87,6 +87,10 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let files_to_copy: Vec<PathBuf> = fs::read_dir(".")
         .expect("could not read dir")
         .map(|res| res.expect("could not read entry").path())
+        .map(|path| {
+            println!("copying {:?}", &path);
+            path
+        })
         .filter(|path| path.file_name() != CACHE_PATH.file_name())
         .filter(
             |path| path.to_str() != Some("./target"), // todo we could shorten compile time by sharing deps in ./target,
@@ -111,8 +115,20 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     println!("going to edit_cargo_file");
 
     // modify cargo.toml (edit package info & add actix + json_serde deps)
+    println!(
+        "exists: function cache: {:?} toml: {:?}",
+        function_cache_proj_path.exists(),
+        function_cache_proj_path.join("cargo.toml").exists()
+    );
+    println!(
+        "function cache contents: {:?}",
+        fs::read_dir(&function_cache_proj_path)
+            .unwrap()
+            .map(|en| en.unwrap().path())
+            .collect::<Vec<PathBuf>>()
+    );
     build_project::edit_cargo_file(
-        &function_cache_proj_path.join("cargo.toml"),
+        &function_cache_proj_path.join("Cargo.toml"),
         &original_target_function_name,
     )
     .expect("error editing cargo file");

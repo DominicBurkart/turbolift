@@ -7,7 +7,9 @@ use crate::utils::symlink_dir;
 
 pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result<()> {
     println!("hi hi hi");
-    let mut parsed_toml: cargo_toml2::CargoToml = cargo_toml2::from_path(cargo_path)?;
+    println!("current dir: {:?}", Path::new(".").canonicalize().unwrap());
+    let mut parsed_toml: cargo_toml2::CargoToml = cargo_toml2::from_path(cargo_path)
+        .unwrap_or_else(|_| panic!("toml at {:?} could not be read", cargo_path));
     let relative_local_deps_cache = cargo_path.parent().unwrap().join(".local_deps");
     fs::create_dir_all(&relative_local_deps_cache)?;
     let local_deps_cache = relative_local_deps_cache.canonicalize()?;
@@ -55,7 +57,12 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
             // determine what the symlink for this dependency should be
             println!("buf: {:?}", &buf);
             let canonical = buf.canonicalize()?;
-            let dep_location = local_deps_cache.join(&canonical.file_name().unwrap());
+            println!("canonical: {:?}", &canonical);
+            let dep_location = local_deps_cache.join(
+                &canonical
+                    .file_name()
+                    .unwrap_or_else(|| canonical.as_os_str()),
+            );
             println!("dep_location, {:?}", dep_location);
 
             // check that we don't have a naming error

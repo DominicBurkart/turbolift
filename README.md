@@ -5,6 +5,7 @@
     alt="turbolift’s current version badge"
     title="turbolift’s current version badge" />
 [![status](https://github.com/DominicBurkart/turbolift/workflows/rust/badge.svg)](https://github.com/DominicBurkart/turbolift/actions?query=is%3Acompleted+branch%3Amaster+workflow%3A"rust")
+[![status](https://github.com/DominicBurkart/turbolift/workflows/docker/badge.svg)](https://github.com/DominicBurkart/turbolift/actions?query=is%3Acompleted+branch%3Amaster+workflow%3A"docker")
 
 ## Distribution as an afterthought.
 Turbolift allows developers to turn normal rust functions into distributed services 

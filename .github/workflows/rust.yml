@@ -26,7 +26,7 @@ jobs:
       run: rustup update
     - name: Format
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo fmt
-    - name: Check
+    - name: Check30
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo check
     - name: Clippy
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo clippy -- -D warnings
