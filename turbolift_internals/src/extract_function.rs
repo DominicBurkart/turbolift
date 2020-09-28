@@ -128,6 +128,7 @@ pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
     let end_line = span.end().line;
 
     // generate a file with everything
+    println!("file: {:?} file exists: {:?}", path, path.exists());
     let file_contents = std::fs::read_to_string(path).unwrap();
 
     // remove target function
