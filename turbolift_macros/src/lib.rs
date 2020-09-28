@@ -1,23 +1,13 @@
-#[macro_use]
-extern crate lazy_static;
-#[macro_use]
-extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::io::Write;
+use std::path::PathBuf;
 use std::str::FromStr;
 
-use tar::Builder;
 use quote::{quote, format_ident};
 use fs_extra;
-use data_encoding::BASE64;
-use brotli2::write::BrotliEncoder;
 
 use turbolift_internals::{CACHE_PATH, build_project, extract_function};
-
-const COMPRESSION_LEVEL: u32 = 11;
 
 #[proc_macro_attribute]
 pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenStream {
@@ -218,6 +208,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 }
 
 #[proc_macro_attribute]
-pub fn with(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn with(_attr: TokenStream, _item: TokenStream) -> TokenStream {
     unimplemented!()
 }
