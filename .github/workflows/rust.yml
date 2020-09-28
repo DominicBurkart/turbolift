@@ -23,5 +23,5 @@ jobs:
     - name: Clippy
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo clippy -- -D warnings
     - name: Local Queue
-      run: cd examples/local_queue_example && RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test
+      run: cd examples/local_queue_example && RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test --verbose
 
