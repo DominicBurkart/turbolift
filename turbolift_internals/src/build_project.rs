@@ -6,8 +6,6 @@ use std::process::Command;
 use crate::utils::symlink_dir;
 
 pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result<()> {
-    println!("hi hi hi");
-    println!("current dir: {:?}", Path::new(".").canonicalize().unwrap());
     let mut parsed_toml: cargo_toml2::CargoToml = cargo_toml2::from_path(cargo_path)
         .unwrap_or_else(|_| panic!("toml at {:?} could not be read", cargo_path));
     let relative_local_deps_cache = cargo_path.parent().unwrap().join(".local_deps");
@@ -55,15 +53,12 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
         // only descriptions with a path
         if let Some(ref mut buf) = detail.path {
             // determine what the symlink for this dependency should be
-            println!("buf: {:?}", &buf);
             let canonical = buf.canonicalize()?;
-            println!("canonical: {:?}", &canonical);
             let dep_location = local_deps_cache.join(
                 &canonical
                     .file_name()
                     .unwrap_or_else(|| canonical.as_os_str()),
             );
-            println!("dep_location, {:?}", dep_location);
 
             // check that we don't have a naming error
             // todo: automatically handle naming conflicts by mangling the dep for one
@@ -73,26 +68,21 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
                 completed_locations.insert(dep_location.clone());
             }
 
-            println!("hi hi");
             if dep_location.exists() {
                 // dependency already exists, does it point to the correct place?
                 if canonical == dep_location.canonicalize()? {
                     // output already points to the right place, do nothing
-                    println!("kk");
                 } else {
                     // output points somewhere else; delete it; if it's non-empty, error
-                    println!("hmm");
                     fs::remove_dir(&dep_location).unwrap();
                     symlink_dir(&canonical, &dep_location)?;
                 }
             } else {
-                println!("ah");
                 symlink_dir(&canonical, &dep_location)?;
             }
             *buf = dep_location.canonicalize().unwrap();
         }
     }
-    println!("hello");
 
     // mutate all simple definitions to full ones to avoid toml serialization bug
     // ^ https://github.com/DianaNites/cargo-toml2/blob/89fc8e6055d5ee3e8a2ae614f656d79f38e59f9f/README.md#limitations
@@ -105,10 +95,8 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
             *dep = cargo_toml2::Dependency::Full(full);
         };
     });
-    println!("ok.... ");
     parsed_toml.dependencies = Some(deps);
     cargo_toml2::to_path(cargo_path, parsed_toml)?;
-    println!("huh.... ");
     Ok(())
 }
 
@@ -133,7 +121,6 @@ pub fn lint(proj_path: &Path) -> anyhow::Result<()> {
 }
 
 pub fn make_executable(proj_path: &Path, dest: Option<&Path>) -> anyhow::Result<()> {
-    println!("making executable");
     let status = Command::new("cargo")
         .current_dir(proj_path)
         .args("build --release".split(' '))
@@ -153,16 +140,7 @@ pub fn make_executable(proj_path: &Path, dest: Option<&Path>) -> anyhow::Result<
             let local_path = "target/release/".to_string() + &project_name;
             proj_path.canonicalize().unwrap().join(&local_path)
         };
-        println!(
-            "generated executable path: {:?} exists: {:?}",
-            executable_path,
-            executable_path.exists()
-        );
         fs::rename(&executable_path, destination)?;
-        println!(
-            "executable placed in {}",
-            &destination.canonicalize().unwrap().to_str().unwrap()
-        );
     }
     Ok(())
 }

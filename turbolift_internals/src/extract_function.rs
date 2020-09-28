@@ -119,7 +119,6 @@ pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream {
 pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
     let span = function.span();
     let path = span.source_file().path();
-    println!("start line: {}", span.start().line);
     let start_line = match span.start().line {
         0 => 0,
         1 => 0,
@@ -161,8 +160,6 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     let cursor = Cursor::new(Vec::new());
     let mut archive = Builder::new(cursor);
 
-    println!("uwu");
-
     let mut entries: VecDeque<(PathBuf, std::fs::DirEntry)> = fs::read_dir(dir)
         .unwrap()
         .filter_map(Result::ok)
@@ -176,7 +173,6 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
             // in target directories, only pass release (if it exists)
             let release_deps = entry.path().join("release/deps");
             if release_deps.exists() {
-                println!("entry target: {:?}", entry.path());
                 let path = {
                     if entry_parent == dir {
                         PathBuf::from_str("target/release").unwrap()
@@ -205,13 +201,11 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
                     // don't include the cache
                 }
             } else {
-                println!("entry file: {:?}", entry.path());
                 let mut f = fs::File::open(entry.path()).unwrap();
                 archive.append_file(entry_path_with_parent, &mut f).unwrap();
             }
         }
     }
-    println!("finishin");
     archive.finish().unwrap();
     archive.into_inner().unwrap().into_inner()
 }

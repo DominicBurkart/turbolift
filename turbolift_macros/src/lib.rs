@@ -10,7 +10,6 @@ use turbolift_internals::{build_project, extract_function, CACHE_PATH};
 
 #[proc_macro_attribute]
 pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenStream {
-    println!("started");
     // convert proc_macro::TokenStream to proc_macro2::TokenStream
     let distribution_platform = TokenStream2::from(distribution_platform_);
     let function = TokenStream2::from(function_);
@@ -30,7 +29,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let wrapper_route = "/".to_string() + &original_target_function_name + "/" + &params_as_path;
     let param_types = extract_function::to_param_types(typed_params.clone());
     let params_vec = extract_function::params_json_vec(untyped_params.clone());
-    use quote::ToTokens;
     let unpacked_path_params = extract_function::unpack_path_params(&untyped_params);
     let result_type = extract_function::get_result_type(&signature.output);
     let dummy_function = extract_function::make_dummy_function(
@@ -53,7 +51,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
         #[get(#wrapper_route)]
         async fn turbolift_wrapper(path: web::Path<(#param_types,)>) -> Result<HttpResponse> {
-            println!("in wrapper");
             Ok(
                 HttpResponse::Ok()
                     .json(#function_name(#unpacked_path_params))
@@ -81,16 +78,10 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
     // copy all files in repo into cache
     let function_cache_proj_path = CACHE_PATH.join(original_target_function_name.clone());
-    println!("create_dir_all");
     fs::create_dir_all(function_cache_proj_path.clone()).unwrap();
-    println!("create_dir_all ran");
     let files_to_copy: Vec<PathBuf> = fs::read_dir(".")
         .expect("could not read dir")
         .map(|res| res.expect("could not read entry").path())
-        .map(|path| {
-            println!("copying {:?}", &path);
-            path
-        })
         .filter(|path| path.file_name() != CACHE_PATH.file_name())
         .filter(
             |path| path.to_str() != Some("./target"), // todo we could shorten compile time by sharing deps in ./target,
@@ -112,38 +103,18 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let target_main_file = function_cache_proj_path.join("src").join("main.rs");
     fs::write(target_main_file, main_file.to_string()).expect("error editing project main.rs");
 
-    println!("going to edit_cargo_file");
-
     // modify cargo.toml (edit package info & add actix + json_serde deps)
-    println!(
-        "exists: function cache: {:?} toml: {:?}",
-        function_cache_proj_path.exists(),
-        function_cache_proj_path.join("cargo.toml").exists()
-    );
-    println!(
-        "function cache contents: {:?}",
-        fs::read_dir(&function_cache_proj_path)
-            .unwrap()
-            .map(|en| en.unwrap().path())
-            .collect::<Vec<PathBuf>>()
-    );
     build_project::edit_cargo_file(
         &function_cache_proj_path.join("Cargo.toml"),
         &original_target_function_name,
     )
     .expect("error editing cargo file");
 
-    println!("linting");
-
     // lint project
     build_project::lint(&function_cache_proj_path).expect("linting error");
 
-    println!("linting done, fixing");
-
     // check project and give errors
     build_project::check(&function_cache_proj_path).expect("error checking function");
-
-    println!("making executable");
 
     // // build project so that the deps are packaged, and if the worker has the same architecture,
     // // they can directly use the compiled version without having to recompile. todo commented
@@ -152,12 +123,10 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     //     &function_cache_proj_path,
     //     None
     // ).expect("error building function");
-
-    println!("executable made");
+    // ^ todo
 
     // compress project source files
     let project_source_binary = {
-        println!("function_cache_proj_path {:?}", &function_cache_proj_path);
         let tar = extract_function::make_compressed_proj_src(&function_cache_proj_path);
         let tar_file = CACHE_PATH.join(original_target_function_name.clone() + "_source.tar");
         fs::write(&tar_file, tar).expect("failure writing bin");
@@ -171,8 +140,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         ))
         .expect("syntax error while embedding project tar.")
     };
-
-    println!("project source binary generated");
 
     // generate API function for the microservice
     let declare_and_dispatch = quote! {
@@ -204,15 +171,9 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                     #original_target_function_name,
                     params.to_string()
                 ).await?;
-            println!("got response! {:?}", resp_string);
             Ok(turbolift::serde_json::from_str(&resp_string)?)
         }
     };
-    println!("dispatch generated");
-    println!(
-        "dispatch: {}",
-        declare_and_dispatch.clone().into_token_stream().to_string()
-    );
     declare_and_dispatch.into()
 }
 

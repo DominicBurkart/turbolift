@@ -3,9 +3,9 @@ use std::sync::Mutex;
 extern crate proc_macro;
 use async_std::task;
 use futures::future::try_join_all;
+use rand;
 use turbolift::local_queue::LocalQueue;
 use turbolift::on;
-use rand;
 #[macro_use]
 extern crate lazy_static;
 
@@ -28,7 +28,7 @@ fn main() {
         v
     };
     let output = task::block_on(try_join_all(futures)).unwrap();
-    println!("input: {:#?}\noutput: {:#?}", input, output)
+    println!("input: {:?}\noutput: {:?}", input, output);
 }
 
 #[cfg(test)]
@@ -37,7 +37,6 @@ mod tests {
 
     #[test]
     fn it_works() {
-        println!("starting test!");
         let input = vec![rand::random(), rand::random(), rand::random()];
         let futures = {
             let mut v = Vec::new();
@@ -47,9 +46,6 @@ mod tests {
             v
         };
         let output = task::block_on(try_join_all(futures)).unwrap();
-        assert_eq!(
-            input,
-            output
-        );
+        assert_eq!(input, output);
     }
 }
