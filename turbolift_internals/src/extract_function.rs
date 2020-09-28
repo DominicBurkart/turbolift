@@ -119,6 +119,7 @@ pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream {
 pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
     let span = function.span();
     let path = span.source_file().path();
+    println!("start line: {}", span.start().line);
     let start_line = span.start().line - 2; // todo HACK func def can be more than one line
     let end_line = span.end().line;
 
