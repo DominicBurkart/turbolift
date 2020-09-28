@@ -120,7 +120,11 @@ pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
     let span = function.span();
     let path = span.source_file().path();
     println!("start line: {}", span.start().line);
-    let start_line = span.start().line - 2; // todo HACK func def can be more than one line
+    let start_line = match span.start().line {
+        0 => 0,
+        1 => 0,
+        n => n - 2,
+    }; // todo HACK func def can be more than one line
     let end_line = span.end().line;
 
     // generate a file with everything
