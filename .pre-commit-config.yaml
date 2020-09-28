@@ -1,5 +1,24 @@
--   repo: https://github.com/doublify/pre-commit-rust
-    rev: master
-    hooks:
-    -   id: fmt
-    -   id: cargo-check
+-    repo: local
+     hooks:
+        -   id: format
+            name: Fmt
+            description: Runs `cargo fmt` on the repository.
+            entry: bash -c 'RUSTFLAGS='"'"'--cfg procmacro2_semver_exempt'"'"' cargo fmt "$@"' --
+            args: ["--"]
+            language: system
+            types: [rust]
+        -   id: clippy
+            name: Clippy
+            description: Runs `cargo clippy` on the repository.
+            entry: bash -c 'RUSTFLAGS='"'"'--cfg procmacro2_semver_exempt'"'"' cargo clippy "$@"' --
+            args: ["--", "-D", "warnings"]
+            language: system
+            types: [rust]
+            pass_filenames: false
+        -   id: check
+            name: Check
+            description: Runs `cargo check` on the repository.
+            entry: bash -c 'RUSTFLAGS='"'"'--cfg procmacro2_semver_exempt'"'"' cargo check "$@"' --
+            language: system
+            types: [ rust ]
+            pass_filenames: false

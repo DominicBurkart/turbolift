@@ -4,10 +4,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use quote::{quote, format_ident};
-use fs_extra;
+use quote::{format_ident, quote};
 
-use turbolift_internals::{CACHE_PATH, build_project, extract_function};
+use turbolift_internals::{build_project, extract_function, CACHE_PATH};
 
 #[proc_macro_attribute]
 pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenStream {
@@ -35,9 +34,9 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let unpacked_path_params = extract_function::unpack_path_params(&untyped_params);
     let result_type = extract_function::get_result_type(&signature.output);
     let dummy_function = extract_function::make_dummy_function(
-        original_target_function.clone(),
+        original_target_function,
         &function_name_string,
-        untyped_params.clone()
+        untyped_params,
     );
 
     // todo extract any docs from passed function and put into fn wrapper
@@ -87,42 +86,36 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     println!("create_dir_all ran");
     let files_to_copy: Vec<PathBuf> = fs::read_dir(".")
         .expect("could not read dir")
-        .map(
-            |res| res.expect("could not read entry").path()
-        ).filter(
-            |path|
-                path.file_name() != CACHE_PATH.file_name()
-        ).filter(
-            |path| path.to_str() != Some("./target")
-            // todo we could shorten compile time by sharing deps in ./target,
-            // but I didn't have the bandwidth to debug permissions errors caused
-            // by copying all of the compiled lib files.
-        ).collect();
+        .map(|res| res.expect("could not read entry").path())
+        .filter(|path| path.file_name() != CACHE_PATH.file_name())
+        .filter(
+            |path| path.to_str() != Some("./target"), // todo we could shorten compile time by sharing deps in ./target,
+                                                      // but I didn't have the bandwidth to debug permissions errors caused
+                                                      // by copying all of the compiled lib files.
+        )
+        .collect();
     fs_extra::copy_items(
         &files_to_copy,
         function_cache_proj_path.clone(),
         &fs_extra::dir::CopyOptions {
             overwrite: true,
             ..Default::default()
-        }
-    ).expect("error copying items to build cache");
+        },
+    )
+    .expect("error copying items to build cache");
 
     // edit project main file
-    let target_main_file = function_cache_proj_path
-        .join("src")
-        .join("main.rs");
-    fs::write(
-        target_main_file,
-        main_file.to_string()
-    ).expect("error editing project main.rs");
+    let target_main_file = function_cache_proj_path.join("src").join("main.rs");
+    fs::write(target_main_file, main_file.to_string()).expect("error editing project main.rs");
 
     println!("going to edit_cargo_file");
 
     // modify cargo.toml (edit package info & add actix + json_serde deps)
     build_project::edit_cargo_file(
         &function_cache_proj_path.join("cargo.toml"),
-        &original_target_function_name
-    ).expect("error editing cargo file");
+        &original_target_function_name,
+    )
+    .expect("error editing cargo file");
 
     println!("linting");
 
@@ -132,9 +125,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     println!("linting done, fixing");
 
     // check project and give errors
-    build_project::check(
-        &function_cache_proj_path
-    ).expect("error checking function");
+    build_project::check(&function_cache_proj_path).expect("error checking function");
 
     println!("making executable");
 
@@ -154,16 +145,15 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         let tar = extract_function::make_compressed_proj_src(&function_cache_proj_path);
         let tar_file = CACHE_PATH.join(original_target_function_name.clone() + "_source.tar");
         fs::write(&tar_file, tar).expect("failure writing bin");
-        TokenStream2::from_str(
-            &format!(
-                "std::include_bytes!(\"{}\")",
-                tar_file
-                    .canonicalize()
-                    .expect("error canonicalizing tar file location")
-                    .to_str()
-                    .expect("failure converting file path to str")
-            )
-        ).expect("syntax error while embedding project tar.")
+        TokenStream2::from_str(&format!(
+            "std::include_bytes!(\"{}\")",
+            tar_file
+                .canonicalize()
+                .expect("error canonicalizing tar file location")
+                .to_str()
+                .expect("failure converting file path to str")
+        ))
+        .expect("syntax error while embedding project tar.")
     };
 
     println!("project source binary generated");
@@ -203,7 +193,10 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         }
     };
     println!("dispatch generated");
-    println!("dispatch: {}", declare_and_dispatch.clone().into_token_stream().to_string());
+    println!(
+        "dispatch: {}",
+        declare_and_dispatch.clone().into_token_stream().to_string()
+    );
     declare_and_dispatch.into()
 }
 
