@@ -4,7 +4,7 @@
     src="https://img.shields.io/crates/v/turbolift.svg"
     alt="turbolift’s current version badge"
     title="turbolift’s current version badge" />
-[![status](https://github.com/DominicBurkart/turbolift/workflows/rust%20linters/badge.svg)](https://github.com/DominicBurkart/turbolift/actions?query=is%3Acompleted+branch%3Amaster+workflow%3A"rust+linters")
+[![status](https://github.com/DominicBurkart/turbolift/workflows/rust/badge.svg)](https://github.com/DominicBurkart/turbolift/actions?query=is%3Acompleted+branch%3Amaster+workflow%3A"rust")
 
 ## Distribution as an afterthought.
 Turbolift allows developers to turn normal rust functions into distributed services 
