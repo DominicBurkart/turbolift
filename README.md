@@ -55,8 +55,8 @@ transformed into an async function.
 
 ## Tech debt todo
 - [ ] refactor rust-embed / tar situation (we don't need to use both)
-- [ ] address compiler warnings (mostly about unnecessarily mutable values & unused vars) 
-- [ ] restructure project & re-export turbolift_macros from parent lib (turbolift)
+- [x] address compiler warnings (mostly about unnecessarily mutable values & unused vars) 
+- [x] restructure project & re-export turbolift_macros from parent lib (turbolift)
 - [ ] start reducing ginormous API, right now basically everything is public
 
 ## Notes
