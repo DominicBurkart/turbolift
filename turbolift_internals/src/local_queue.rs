@@ -35,19 +35,20 @@ impl LocalQueue {
 #[async_trait]
 impl DistributionPlatform for LocalQueue {
     /// declare a function. Runs once.
-    fn declare(&mut self, function_name: &str, project_tar: &[u8]) {
+    async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
         let relative_build_dir = Path::new(".")
             .join(".turbolift")
             .join(".worker_build_cache");
-        fs::create_dir_all(&relative_build_dir).unwrap();
-        let build_dir = relative_build_dir.canonicalize().unwrap();
+        fs::create_dir_all(&relative_build_dir)?;
+        let build_dir = relative_build_dir.canonicalize()?;
         decompress_proj_src(project_tar, &build_dir).unwrap();
         let function_executable =
             Path::new(CACHE_PATH.as_os_str()).join(function_name.to_string() + "_server");
-        make_executable(&build_dir.join(function_name), Some(&function_executable)).unwrap();
+        make_executable(&build_dir.join(function_name), Some(&function_executable))?;
         self.fn_name_to_binary_path
             .insert(function_name.to_string(), function_executable);
         //std::fs::remove_dir_all(build_dir.join(function_name)).unwrap(); todo
+        Ok(())
     }
 
     // dispatch params to a function. Runs each time the function is called.
