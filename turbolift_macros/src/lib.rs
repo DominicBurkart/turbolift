@@ -43,7 +43,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let sanitized_file = extract_function::get_sanitized_file(&function);
     // todo make code below hygienic in case sanitized_file also imports from actix_web
     let main_file = quote! {
-        use actix_web::{get, web, HttpResponse, Result};
+        use turbolift::actix_web::{self, get, web, HttpResponse, Result};
 
         #sanitized_file
         #dummy_function
@@ -57,7 +57,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             )
         }
 
-        #[actix_rt::main]
+        #[actix_web::main]
         async fn main() -> std::io::Result<()> {
             use actix_web::{App, HttpServer};
 

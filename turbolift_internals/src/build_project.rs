@@ -15,32 +15,11 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
     // change name
     parsed_toml.package.name = function_name.to_string() + "_turbolift";
 
-    // add deps
-    let new_deps = vec![
-        ("actix-web", "2"),
-        ("actix-rt", "1"),
-        ("serde_json", "1"),
-        ("rust-embed", "5"),
-    ];
+    // symlink any local directories so they work with the new project location
     let mut deps = match parsed_toml.dependencies {
         Some(deps) => deps,
         None => Default::default(),
     };
-    for (dep, version) in new_deps.into_iter() {
-        if !deps.contains_key(dep) {
-            deps.insert(
-                dep.to_string(),
-                cargo_toml2::Dependency::Full(cargo_toml2::DependencyFull {
-                    version: Some(version.to_string()),
-                    ..Default::default()
-                }),
-            );
-        } else {
-            // todo make sure that the deps versions here are compatible
-        }
-    }
-
-    // symlink any local directories so they work with the new project location
     let details = deps
         .iter_mut()
         // only full dependency descriptions (not simple version number)
