@@ -5,7 +5,7 @@ authors = ["Dominic Burkart <@DominicBurkart>"]
 edition = "2018"
 description = "WIP"
 readme = "README.md"
-license = "MIT OR BSD-3-Clause OR GPL-2.0+"
+license = "Hippocratic-2.1"
 
 [dependencies]
 turbolift_macros = { path="./turbolift_macros" }
