@@ -12,8 +12,6 @@ use crate::distributed_platform::{
 const K8S_NAMESPACE: &str = "turbolift";
 type ImageTag = String;
 
-// pub type K8sConfig = kube::config::Config; todo
-
 pub struct K8s {
     pods: Vec<Pod>,
 }

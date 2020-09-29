@@ -13,3 +13,11 @@ jobs:
       - uses: actions/checkout@v2
       - name: build local queue example
         run: docker build -f examples/local_queue_example/Dockerfile .
+  kubernetes_example:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: build k8s example
+        run: docker build -f examples/kubernetes_example/Dockerfile -t kub .
+      - name: run k8s example
+        run: docker run -v /var/run/docker.sock:/var/run/docker.sock kub
