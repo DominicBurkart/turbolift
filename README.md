@@ -64,3 +64,5 @@ build any microservices or alter any code.
 
 ## Current tech debt todo
 - [ ] start reducing ginormous API, right now basically everything is public
+- [ ] refactor split between turbolift_internals and turbolift_macros
+- [ ] improve names

@@ -1,15 +1,19 @@
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use std::fs;
-use std::path::PathBuf;
-use std::str::FromStr;
+use quote::quote as q;
 
-use quote::{format_ident, quote, ToTokens};
+use turbolift_internals::extract_function;
 
-use turbolift_internals::{build_project, extract_function, CACHE_PATH};
-
+#[cfg(feature = "distributed")]
 #[proc_macro_attribute]
 pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenStream {
+    use quote::{format_ident, ToTokens};
+    use std::fs;
+    use std::path::PathBuf;
+    use std::str::FromStr;
+
+    use turbolift_internals::{build_project, CACHE_PATH};
+
     // convert proc_macro::TokenStream to proc_macro2::TokenStream
     let distribution_platform = TokenStream2::from(distribution_platform_);
     let function = TokenStream2::from(function_);
@@ -42,7 +46,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     // read current file to access imports and local functions
     let sanitized_file = extract_function::get_sanitized_file(&function);
     // todo make code below hygienic in case sanitized_file also imports from actix_web
-    let main_file = quote! {
+    let main_file = q! {
         use turbolift::actix_web::{self, get, web, HttpResponse, Result};
 
         #sanitized_file
@@ -142,7 +146,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     };
 
     // generate API function for the microservice
-    let declare_and_dispatch = quote! {
+    let declare_and_dispatch = q! {
         extern crate turbolift;
 
         // dispatch call and process response
@@ -175,6 +179,32 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         }
     };
     declare_and_dispatch.into()
+}
+
+#[cfg(not(feature = "distributed"))]
+#[proc_macro_attribute]
+pub fn on(_distribution_platform: TokenStream, function_: TokenStream) -> TokenStream {
+    use proc_macro2::{Ident, Span};
+
+    // convert proc_macro::TokenStream to proc_macro2::TokenStream
+    let function = TokenStream2::from(function_);
+    let mut wrapped_original_function = extract_function::get_fn_item(function);
+    let original_target_function_ident = wrapped_original_function.sig.ident.clone();
+    let signature = wrapped_original_function.sig.clone();
+    let typed_params = signature.inputs;
+    let untyped_params = extract_function::to_untyped_params(typed_params.clone());
+    let output_type = extract_function::get_result_type(&signature.output);
+    wrapped_original_function.sig.ident = Ident::new("wrapped_function", Span::call_site());
+
+    let async_function = q! {
+        extern crate turbolift;
+
+        async fn #original_target_function_ident(#typed_params) -> turbolift::DistributionResult<#output_type> {
+            #wrapped_original_function
+            Ok(wrapped_function(#untyped_params))
+        }
+    };
+    async_function.into()
 }
 
 #[proc_macro_attribute]
