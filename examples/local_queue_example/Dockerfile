@@ -1,4 +1,4 @@
-# run me in turbolift root! E.G.: "docker -f examples/local_queue_example/Dockerfile ."
+# run me in turbolift root! E.G.: "docker build -f examples/local_queue_example/Dockerfile ."
 FROM rustlang/rust:nightly
 COPY ./ ./
 WORKDIR examples/local_queue_example
