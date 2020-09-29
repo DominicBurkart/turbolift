@@ -7,20 +7,25 @@
 [![status](https://github.com/DominicBurkart/turbolift/workflows/rust/badge.svg)](https://github.com/DominicBurkart/turbolift/actions?query=is%3Acompleted+branch%3Amaster+workflow%3A"rust")
 [![status](https://github.com/DominicBurkart/turbolift/workflows/docker/badge.svg)](https://github.com/DominicBurkart/turbolift/actions?query=is%3Acompleted+branch%3Amaster+workflow%3A"docker")
 
+Turbolift is a WIP distribution platform for rust. It's designed to make distribution an afterthought 
+by extracting and distributing specific functions and their dependencies from a larger rust application.
+Turbolift then handles the glue between these extracted mini-apps and the main application.
+
+Look in the [examples](https://github.com/DominicBurkart/turbolift/tree/master/examples) directory for 
+full projects with working syntax examples. 
+
 ## Distribution as an afterthought.
 Turbolift allows developers to turn normal rust functions into distributed services 
  just by tagging them with a macro. This lets you develop in a monolith environment, 
-but benefit from the scalability of microservice architectures. This pattern allows 
-the compiler to help with the "hidden" complexity of connecting microservices, in 
-exchange for longer compile times and larger dependency caches compared to non-distributed systems.
+but benefit from the scalability of microservice architectures.
 
-If you need to build or run your application without distribution, 
-just pass the `local` feature: ```cargo run --features "local"```. The functions tagged for 
-distribution will have identical signatures to the production version, but will run locally 
-when you `.await` them.
+For quicker development builds, `cargo build` doesn't build the distributed version of your code. 
+Instead, the functions tagged for distribution will have identical signatures to the production version, 
+but will run locally when you `.await` them. Same as we use `--release` for better optimization, 
+we use `--distributed` to build the relevant orchestration: `cargo build --release --distributed`.
 
 ## Important implementation notes
-- implemented over http using `reqwest` and `actix-web` (no current plans to refactor to use a lower level network protocol).
+- implemented over http using `surf` and `actix-web` (no current plans to refactor to use a lower level network protocol).
 - assumes a secure network– function parameters are sent in plaintext to the microservice.
 - source vulnerability: when building, anything in the project directory is bundled and sent over the network to workers. 
 
@@ -45,10 +50,11 @@ remove the completed binary and distribution code.
 should not have relative local dependencies prone to breaking.
 
 ## Project Goals
-- [ ] support kubernetes.
+- [ ] support kubernetes ([pr](https://github.com/DominicBurkart/turbolift/pull/2)).
 - [ ] roadmap support for other targets.
-- [ ] disable distribution using `cargo build --features "local"`, causing each "distributed" function to simply be
-transformed into an async function.
+- [ ] only use distributed configuration when flagged (like in `cargo build --distributed`). Otherwise,
+just transform the tagged function into an async function (to provide an identical API), but don't 
+build any microservices or alter any code.
 - [x] don't send debug build artifacts. 
 - [x] don't unnecessarily clone the stringified function name every time that a function call is dispatched to to the distribution platform.
 - [ ] build cross-architecture compilation tests into the CI.
