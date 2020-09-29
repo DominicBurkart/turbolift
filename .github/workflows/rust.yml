@@ -24,10 +24,13 @@ jobs:
       run: rustup update
     - name: Format
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo fmt
-    - name: Check30
+    - name: Check without distributed feature
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo check
+    - name: Check with distributed feature
+      run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo check --features "distributed"
     - name: Clippy
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo clippy -- -D warnings
-    - name: Local Queue
+    - name: Local Queue without distributed feature
       run: cd examples/local_queue_example && RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test
-
+    - name: Local Queue with distributed feature
+      run: cd examples/local_queue_example && RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test --features "distributed"
