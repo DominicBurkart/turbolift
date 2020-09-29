@@ -27,6 +27,5 @@ url = "2"
 lazy_static = "1"
 anyhow = "1"
 cached = "0.19"
-rust-embed= { version="5", features=["debug-embed", "compression"]}
 async-std = "1.6"
 async-trait = "0.1"

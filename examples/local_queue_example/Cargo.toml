@@ -15,4 +15,3 @@ turbolift = { path="../../" }
 
 # these are dependencies that need to be bundled into turbolift, but debugging how to reexport proc macros is hard.
 cached = "0.19"
-rust-embed= { version="5", features=["debug-embed", "compression"]}

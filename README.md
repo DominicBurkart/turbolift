@@ -49,20 +49,15 @@ remove the completed binary and distribution code.
 - projects can have relative local dependencies listing in the cargo manifest, but those dependencies themselves 
 should not have relative local dependencies prone to breaking.
 
-## Project Goals
+## Current Project Goals
 - [ ] support kubernetes ([pr](https://github.com/DominicBurkart/turbolift/pull/2)).
 - [ ] roadmap support for other targets.
 - [ ] only use distributed configuration when flagged (like in `cargo build --distributed`). Otherwise,
 just transform the tagged function into an async function (to provide an identical API), but don't 
 build any microservices or alter any code.
-- [x] don't send debug build artifacts. 
-- [x] don't unnecessarily clone the stringified function name every time that a function call is dispatched to to the distribution platform.
-- [ ] build cross-architecture compilation tests into the CI.
+- [ ] build cross-architecture compilation tests into the CI (RN we only test via github actions read Docker, and a different custom Docker test workflow)
 
-## Tech debt todo
-- [ ] refactor rust-embed / tar situation (we don't need to use both)
-- [x] address compiler warnings (mostly about unnecessarily mutable values & unused vars) 
-- [x] restructure project & re-export turbolift_macros from parent lib (turbolift)
+## Current tech debt todo
 - [ ] start reducing ginormous API, right now basically everything is public
 
 ## Notes
