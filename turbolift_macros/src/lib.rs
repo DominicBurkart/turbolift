@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 
 use turbolift_internals::{build_project, extract_function, CACHE_PATH};
 
@@ -25,11 +25,11 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let function_name_string = function_name.to_string();
     let typed_params = signature.inputs;
     let untyped_params = extract_function::to_untyped_params(typed_params.clone());
+    let untyped_params_tokens = untyped_params.to_token_stream();
     let params_as_path = extract_function::to_path_params(untyped_params.clone());
     let wrapper_route = "/".to_string() + &original_target_function_name + "/" + &params_as_path;
     let param_types = extract_function::to_param_types(typed_params.clone());
     let params_vec = extract_function::params_json_vec(untyped_params.clone());
-    let unpacked_path_params = extract_function::unpack_path_params(&untyped_params);
     let result_type = extract_function::get_result_type(&signature.output);
     let dummy_function = extract_function::make_dummy_function(
         original_target_function,
@@ -50,10 +50,10 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         #target_function
 
         #[get(#wrapper_route)]
-        async fn turbolift_wrapper(path: web::Path<(#param_types,)>) -> Result<HttpResponse> {
+        async fn turbolift_wrapper(web::Path((#untyped_params_tokens)): web::Path<(#param_types)>) -> Result<HttpResponse> {
             Ok(
                 HttpResponse::Ok()
-                    .json(#function_name(#unpacked_path_params))
+                    .json(#function_name(#untyped_params_tokens))
             )
         }
 
