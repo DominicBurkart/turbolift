@@ -8,4 +8,9 @@ edition = "2018"
 "distributed" = ["turbolift/distributed"]
 
 [dependencies]
+rand = "0.7"
+async-std = "1"
+lazy_static = "1"
+futures = "0.3"
+cute = "0.3"
 turbolift = { path="../../" }

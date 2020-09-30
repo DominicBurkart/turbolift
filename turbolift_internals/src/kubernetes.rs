@@ -12,8 +12,15 @@ use crate::distributed_platform::{
 const K8S_NAMESPACE: &str = "turbolift";
 type ImageTag = String;
 
+#[derive(Default)]
 pub struct K8s {
     pods: Vec<Pod>,
+}
+
+impl K8s {
+    pub fn new() -> K8s {
+        K8s { pods: Vec::new() }
+    }
 }
 
 #[async_trait]
