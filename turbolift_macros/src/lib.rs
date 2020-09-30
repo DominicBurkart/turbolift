@@ -164,7 +164,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
             // call .declare once by memoizing the call
             #[cached(size=1)]
-            async fn setup() -> DistributionResult<()> {
+            async fn setup() {
                 #distribution_platform
                     .lock()
                     .unwrap()
@@ -172,7 +172,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                     .await
                     .expect(#declaration_error_text)
             }
-            setup().await?;
+            setup().await;
 
             let params = #params_vec.join("/");
 
