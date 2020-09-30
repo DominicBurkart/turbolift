@@ -57,7 +57,7 @@ for each function call.
 ## Current Project Goals
 - [ ] support kubernetes ([pr](https://github.com/DominicBurkart/turbolift/pull/2)).
 - [ ] roadmap support for other targets.
-- [ ] only use distributed configuration when flagged (like in `cargo build --features "distributed"`). Otherwise,
+- [X] only use distributed configuration when flagged (like in `cargo build --features "distributed"`). Otherwise,
 just transform the tagged function into an async function (to provide an identical API), but don't 
 build any microservices or alter any code.
 - [ ] build cross-architecture compilation tests into the CI (RN we only test via github actions read Docker, and a different custom Docker test workflow)
