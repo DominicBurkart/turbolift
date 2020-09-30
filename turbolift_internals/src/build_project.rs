@@ -102,7 +102,7 @@ pub fn lint(proj_path: &Path) -> anyhow::Result<()> {
 pub fn make_executable(proj_path: &Path, dest: Option<&Path>) -> anyhow::Result<()> {
     let status = Command::new("cargo")
         .current_dir(proj_path)
-        .args("build --release --features \"distributed,service\"".split(' '))
+        .args("build --release --features \"distributed\"".split(' '))
         .status()?;
 
     if !status.success() {
