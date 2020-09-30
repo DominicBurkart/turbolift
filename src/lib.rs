@@ -5,7 +5,6 @@ pub use cached;
 #[cfg(feature = "distributed")]
 pub use chrono;
 
-#[cfg(feature = "service")]
 pub use actix_web;
 #[cfg(feature = "service")]
 pub use serde_json;

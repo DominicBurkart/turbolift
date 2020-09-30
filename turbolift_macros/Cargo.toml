@@ -9,6 +9,9 @@ edition = "2018"
 [lib]
 proc-macro = true
 
+[features]
+"distributed" = []
+
 [dependencies]
 quote = "1"
 proc-macro2 = "1"

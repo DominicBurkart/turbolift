@@ -8,8 +8,8 @@ readme = "README.md"
 license = "Hippocratic-2.1"
 
 [features]
-distributed = ["chrono", "cached", "async-std"]
-service = ["actix-web", "serde_json"]
+distributed = ["chrono", "cached", "async-std", "turbolift_macros/distributed"]
+service = ["serde_json"]
 # todo we can optimize reqs for children with this load
 
 [dependencies]
@@ -18,5 +18,5 @@ turbolift_internals = { path = "./turbolift_internals" }
 async-std = { version = "1.6", optional = true }
 chrono = { version = "0.4", optional = true }
 cached = { version = "0.19", optional = true }
-actix-web = { version = "3", optional = true }
+actix-web = { version = "3" }
 serde_json = { version = "1", optional = true }
