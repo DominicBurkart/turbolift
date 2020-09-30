@@ -18,3 +18,4 @@ proc-macro2 = "1"
 fs_extra = "1"
 turbolift_internals = { path="../turbolift_internals" }
 futures = "0.3"
+cached = "0.19"
