@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
+  lints:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -30,7 +30,3 @@ jobs:
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo check --features "distributed"
     - name: Clippy
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo clippy -- -D warnings
-    - name: Local Queue without distributed feature
-      run: cd examples/local_queue_example && RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test
-    - name: Local Queue with distributed feature
-      run: cd examples/local_queue_example && RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test --features "distributed"
