@@ -5,9 +5,9 @@ use std::path::Path;
 pub mod build_project;
 pub mod distributed_platform;
 pub mod extract_function;
-pub mod utils;
-pub mod local_queue;
 pub mod kubernetes;
+pub mod local_queue;
+pub mod utils;
 pub use serde_json;
 
 lazy_static! {

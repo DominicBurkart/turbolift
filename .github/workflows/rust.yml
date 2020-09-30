@@ -22,8 +22,12 @@ jobs:
           override: true
     - name: Rustup
       run: rustup update
-    - name: Format
+    - name: Format turbolift
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo fmt
+    - name: Format turbolift_internals
+      run: cd turbolift_internals && RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo fmt
+    - name: Format turbolift_macros
+      run: cd turbolift_macros && RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo
     - name: Check without distributed feature
       run: RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo check
     - name: Check with distributed feature
