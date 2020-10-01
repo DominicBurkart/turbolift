@@ -160,7 +160,8 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             use turbolift::DistributionPlatform;
             use turbolift::DistributionResult;
             use turbolift::async_std::task;
-            use turbolift::cached::proc_macro::cached;
+            extern crate turbolift::cached as ::cached; // cached proc_macro needs lib in {{root}}
+            pub use cached::proc_macro::cached;
 
             // call .declare once by memoizing the call
             #[cached(size=1)]
