@@ -15,7 +15,7 @@ RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly test
 RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly run
 
 # run distributed tests
-RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly test --features "distributed"
-RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly run --features "distributed"
+RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly test --features distributed
+RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly run --features distributed
 
 ../../kind delete cluster

@@ -95,6 +95,10 @@ impl DistributionPlatform for LocalQueue {
         // ^ todo not sure why futures are hanging here unless I wrap them in a new block_on?
         Ok(response)
     }
+
+    fn has_declared(&self, fn_name: &str) -> bool {
+        self.fn_name_to_binary_path.contains_key(fn_name)
+    }
 }
 
 impl Drop for LocalQueue {

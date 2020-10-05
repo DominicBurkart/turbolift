@@ -19,4 +19,6 @@ pub trait DistributionPlatform {
         function_name: &str,
         params: ArgsString,
     ) -> DistributionResult<JsonResponse>;
+
+    fn has_declared(&self, fn_name: &str) -> bool;
 }

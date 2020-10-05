@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use cached::proc_macro::cached;
 use k8s_openapi::api::core::v1::Pod;
 use kube::api::{Api, PostParams};
 use kube::Client;
+use std::collections::HashMap;
 use url::Url;
 
 use crate::distributed_platform::{
@@ -14,12 +14,12 @@ type ImageTag = String;
 
 #[derive(Default)]
 pub struct K8s {
-    pods: Vec<Pod>,
+    fn_names_to_pods: HashMap<String, Pod>,
 }
 
 impl K8s {
     pub fn new() -> K8s {
-        K8s { pods: Vec::new() }
+        Default::default()
     }
 }
 
@@ -31,7 +31,7 @@ impl DistributionPlatform for K8s {
         let pods: Api<Pod> = Api::namespaced(client, K8S_NAMESPACE);
 
         // generate image & host it on a local repo
-        let repo_url = setup_repo();
+        let repo_url = setup_repo(function_name, project_tar)?;
         let local_tag = make_image(function_name, project_tar)?;
         let tag_in_repo = add_image_to_repo(local_tag)?;
         let image_url = repo_url.join(&tag_in_repo)?;
@@ -54,9 +54,11 @@ impl DistributionPlatform for K8s {
                 ],
             }
         }))?;
-        self.pods
-            .push(pods.create(&PostParams::default(), &pod).await?);
-        // todo do we need to monitor the pod in any way??
+        self.fn_names_to_pods.insert(
+            function_name.to_string(),
+            pods.create(&PostParams::default(), &pod).await?,
+        );
+        // todo we should make sure that the pod is accepted, and should make sure it didn't error
         Ok(())
     }
 
@@ -67,10 +69,13 @@ impl DistributionPlatform for K8s {
     ) -> DistributionResult<JsonResponse> {
         unimplemented!()
     }
+
+    fn has_declared(&self, fn_name: &str) -> bool {
+        self.fn_names_to_pods.contains_key(fn_name)
+    }
 }
 
-#[cached(size = 1)]
-fn setup_repo() -> Url {
+fn setup_repo(_function_name: &str, _project_tar: &[u8]) -> DistributionResult<Url> {
     unimplemented!()
 }
 

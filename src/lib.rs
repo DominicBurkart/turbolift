@@ -4,7 +4,6 @@ pub use async_std;
 pub use chrono;
 
 pub use actix_web;
-pub use cached;
 pub use serde_json;
 
 pub use distributed_platform::{DistributionPlatform, DistributionResult};

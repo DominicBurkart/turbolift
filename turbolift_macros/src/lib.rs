@@ -40,10 +40,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         &function_name_string,
         untyped_params,
     );
-    let declaration_error_text = format!(
-        "turbolift: error while declaring {}",
-        original_target_function_name
-    );
 
     // todo extract any docs from passed function and put into fn wrapper
 
@@ -157,23 +153,18 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         async fn #original_target_function_ident(#typed_params) ->
             turbolift::DistributionResult<#result_type> {
             use std::time::Duration;
-            use turbolift::DistributionPlatform;
+            use turbolift::distributed_platform::DistributionPlatform;
             use turbolift::DistributionResult;
             use turbolift::async_std::task;
-            extern crate turbolift::cached as ::cached; // cached proc_macro needs lib in {{root}}
-            pub use cached::proc_macro::cached;
 
-            // call .declare once by memoizing the call
-            #[cached(size=1)]
-            async fn setup() {
+            if !#distribution_platform
+                .lock()?
+                .has_declared(#original_target_function_name) {
                 #distribution_platform
-                    .lock()
-                    .unwrap()
+                    .lock()?
                     .declare(#original_target_function_name, #project_source_binary)
-                    .await
-                    .expect(#declaration_error_text)
+                    .await?;
             }
-            setup().await;
 
             let params = #params_vec.join("/");
 
