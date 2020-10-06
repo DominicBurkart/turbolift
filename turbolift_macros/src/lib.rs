@@ -157,7 +157,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             use turbolift::DistributionResult;
             use turbolift::async_std::task;
 
-            let platform = #distribution_platform.lock()?;
+            let mut platform = #distribution_platform.lock()?;
 
             if !platform.has_declared(#original_target_function_name) {
                 platform
