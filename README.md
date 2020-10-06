@@ -52,6 +52,11 @@ should not have relative local dependencies prone to breaking.
 - if your program produces side effects when initialized, for example when 
 global constants are initialized, those side effects may be triggered 
 for each function call.
+- currently, turbolift does not guarantee that the target operating system for a 
+program will also be used with its microservices.
+- currently, turbolift's k8s support only works with the en0 interface. For devices 
+with multiple network interfaces (en1, en2, ...), we ignore all other interfaces
+while sharing information from the across the local network.
 
 ## Current Project Goals
 - [ ] support kubernetes ([pr](https://github.com/DominicBurkart/turbolift/pull/2)).

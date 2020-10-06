@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+use std::process::Command;
+use std::str::FromStr;
+
 use async_trait::async_trait;
+use base64::encode;
 use k8s_openapi::api::core::v1::Pod;
 use kube::api::{Api, PostParams};
 use kube::Client;
-use std::collections::HashMap;
 use url::Url;
 
 use crate::distributed_platform::{
@@ -75,12 +79,47 @@ impl DistributionPlatform for K8s {
     }
 }
 
-fn setup_repo(_function_name: &str, _project_tar: &[u8]) -> DistributionResult<Url> {
-    unimplemented!()
+fn setup_repo(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<Url> {
+    let status = Command::new("docker")
+        .args("run -d -p 5000:5000 --restart=always --name registry registry:2".split(' '))
+        .status()?; // todo choose an open port
+    if !status.success() {
+        return Err(anyhow::anyhow!("repo setup failed"));
+    }
+    let interfaces = get_if_addrs::get_if_addrs()?;
+    for interface in interfaces {
+        if interface.name == "en0" {
+            // todo support other network interfaces
+            let ip = interface.addr.ip();
+            return Ok(Url::from_str(&(ip.to_string() + ":5000"))?);
+        }
+    }
+    Err(anyhow::anyhow!("no en0 interface found"))
 }
 
-fn make_image(_function_name: &str, _project_tar: &[u8]) -> DistributionResult<ImageTag> {
-    unimplemented!()
+fn make_image(function_name: &str, project_tar: &[u8]) -> anyhow::Result<ImageTag> {
+    let tar_base64 = encode(project_tar);
+    let mut docker_file = format!(
+        "\
+FROM rustlang/rust:nightly
+RUN  apt-get update \
+  && apt-get install -y coreutils \
+  && rm -rf /var/lib/apt/lists/*
+base64 --decode {} > f.tar
+tar xvf f.tar
+",
+        tar_base64
+    );
+    docker_file.insert(0, '\'');
+    docker_file.push('\'');
+    let tag_flag = "-t ".to_string() + function_name;
+    let status = Command::new("docker")
+        .args(&["build", &tag_flag, "-", &docker_file])
+        .status()?;
+    if status.success() {
+        return Err(anyhow::anyhow!("docker image build failure"));
+    }
+    Ok(function_name.to_string())
 }
 
 fn add_image_to_repo(_local_tag: ImageTag) -> DistributionResult<ImageTag> {
