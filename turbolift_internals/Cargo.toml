@@ -29,8 +29,8 @@ anyhow = "1"
 cached = "0.19"
 async-std = "1.6"
 async-trait = "0.1"
-base64 = "0.13"
 get_if_addrs = "0.5.3"
+regex = "1"
 
 # kubernetes-specific requirements
 kube = "0.42.0"

@@ -57,6 +57,10 @@ program will also be used with its microservices.
 - currently, turbolift's k8s support only works with the en0 interface. For devices 
 with multiple network interfaces (en1, en2, ...), we ignore all other interfaces
 while sharing information from the across the local network.
+- When running k8s cluster, a local registry is set up on the host machine 
+by using the registry image. Distribution is handled by this registry, which currently 
+does not handle auto-deletion of distributed images. This means that the image must occasionally 
+be wiped if the same environment is reused to distribute many functions over time.
 
 ## Current Project Goals
 - [ ] support kubernetes ([pr](https://github.com/DominicBurkart/turbolift/pull/2)).
