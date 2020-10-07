@@ -10,7 +10,7 @@ use turbolift::kubernetes::K8s;
 use turbolift::on;
 
 lazy_static! {
-    static ref K8S: Mutex<K8s> = Mutex::new(K8s::new());
+    static ref K8S: Mutex<K8s> = Mutex::new(K8s::with_max_replicas(2));
 }
 
 #[on(K8S)]

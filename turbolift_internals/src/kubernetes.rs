@@ -3,7 +3,8 @@ use std::process::Command;
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::apps::v1::Deployment;
+use k8s_openapi::api::core::v1::Service;
 use kube::api::{Api, PostParams};
 use kube::Client;
 use regex::Regex;
@@ -12,18 +13,47 @@ use url::Url;
 use crate::distributed_platform::{
     ArgsString, DistributionPlatform, DistributionResult, JsonResponse,
 };
+use syn::export::Formatter;
 
 const K8S_NAMESPACE: &str = "turbolift";
 type ImageTag = String;
+type ServiceAddress = String;
 
-#[derive(Default)]
 pub struct K8s {
-    fn_names_to_pods: HashMap<String, Pod>,
+    max_scale_n: u32,
+    fn_names_to_services: HashMap<String, ServiceAddress>,
 }
 
 impl K8s {
+    /// returns a k8s object that does not perform autoscaling.
     pub fn new() -> K8s {
-        Default::default()
+        K8s::with_max_replicas(1)
+    }
+
+    pub fn with_max_replicas(max: u32) -> K8s {
+        K8s {
+            max_scale_n: max,
+            fn_names_to_services: HashMap::new(),
+        }
+    }
+}
+
+impl Default for K8s {
+    fn default() -> Self {
+        K8s::new()
+    }
+}
+
+pub struct AutoscaleError {}
+impl std::error::Error for AutoscaleError {}
+impl std::fmt::Debug for AutoscaleError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "error while applying autoscale")
+    }
+}
+impl std::fmt::Display for AutoscaleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "error while applying autoscale")
     }
 }
 
@@ -31,8 +61,10 @@ impl K8s {
 impl DistributionPlatform for K8s {
     async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
         // connect to cluster. tries in-cluster configuration first, then falls back to kubeconfig file.
-        let client = Client::try_default().await?;
-        let pods: Api<Pod> = Api::namespaced(client, K8S_NAMESPACE);
+        let deployment_client = Client::try_default().await?;
+        let deployments: Api<Deployment> = Api::namespaced(deployment_client, K8S_NAMESPACE);
+        let service_client = Client::try_default().await?;
+        let services: Api<Service> = Api::namespaced(service_client, K8S_NAMESPACE);
 
         // generate image & host it on a local repo
         let repo_url = setup_repo(function_name, project_tar)?;
@@ -40,29 +72,93 @@ impl DistributionPlatform for K8s {
         let tag_in_repo = add_image_to_repo(local_tag)?;
         let image_url = repo_url.join(&tag_in_repo)?;
 
-        // make pod
-        let pod_name = function_name;
-        let container_name = function_name.to_string() + "-container";
-        let pod = serde_json::from_value(serde_json::json!({
-            "apiVersion": "v1",
-            "kind": "Pod",
+        // make deployment
+        let deployment_name = function_name.to_string() + "-deployment";
+        let service_name = function_name.to_string() + "-service";
+        let app_name = function_name.to_string();
+        let deployment = serde_json::from_value(serde_json::json!({
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
             "metadata": {
-                "name": pod_name
+                "name": deployment_name,
+                "labels": {
+                    "app": app_name
+                }
             },
             "spec": {
-                "containers": [
-                    {
-                        "name": container_name,
-                        "image": image_url.as_str(),
+                "replicas": 1,
+                "selector": {
+                    "matchLabels": {
+                        "app": app_name
+                    }
+                },
+                "template": {
+                    "metadata": {
+                        "labels": {
+                            "app": app_name
+                        }
                     },
-                ],
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": tag_in_repo,
+                                "image": image_url.as_str(),
+                                "ports": {
+                                    "containerPort": 5000
+                                }
+                            },
+                        ]
+                    }
+                }
+
             }
         }))?;
-        self.fn_names_to_pods.insert(
+        deployments
+            .create(&PostParams::default(), &deployment)
+            .await?;
+
+        // make service pointing to deployment
+        let service = serde_json::from_value(serde_json::json!({
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "name": service_name
+            },
+            "spec": {
+                "selector": {
+                    "app": deployment_name
+                },
+                "ports": {
+                    "protocol": "HTTP",
+                    "port": 5000,
+                    "targetPort": 5000
+                }
+            }
+        }))?;
+        services.create(&PostParams::default(), &service).await?;
+
+        // todo make sure that the pod and service were correctly started before returning
+
+        if self.max_scale_n > 1 {
+            // set autoscale
+            let scale_args = format!(
+                "autoscale deployment {} --max={}",
+                deployment_name, self.max_scale_n
+            );
+            let scale_status = Command::new("kubectl")
+                .args(scale_args.as_str().split(' '))
+                .status()?;
+            if !scale_status.success() {
+                return Err(Box::new(AutoscaleError {}));
+                // ^ todo attach error context from child
+            }
+        }
+
+        self.fn_names_to_services.insert(
             function_name.to_string(),
-            pods.create(&PostParams::default(), &pod).await?,
+            service_name + "." + K8S_NAMESPACE, // assume that we have a dns resolver
         );
-        // todo we should make sure that the pod is accepted, and should make sure it didn't error
+        // todo handle deleting the relevant service and deployment for each distributed function.
         Ok(())
     }
 
@@ -75,7 +171,7 @@ impl DistributionPlatform for K8s {
     }
 
     fn has_declared(&self, fn_name: &str) -> bool {
-        self.fn_names_to_pods.contains_key(fn_name)
+        self.fn_names_to_services.contains_key(fn_name)
     }
 }
 
@@ -106,6 +202,7 @@ fn setup_repo(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<Url> 
         "5000"
     } else {
         // registry is running. Return for already-running registry.
+        // todo we should always start a new registry, just with a new port
         PORT_RE.captures(&utf8).unwrap().get(1).unwrap().as_str()
     };
 
@@ -139,7 +236,7 @@ fn make_image(function_name: &str, project_tar: &[u8]) -> anyhow::Result<ImageTa
 COPY {} {}
 RUN cat {} | tar xvf -
 WORKDIR {}
-ENTRYPOINT [\"cargo\", \"run\"]",
+ENTRYPOINT [\"cargo\", \"run\", \"127.0.0.1:5000\"]",
         tar_file_name, tar_file_name, tar_file_name, function_name
     );
     std::fs::write(&dockerfile_path, docker_file)?;
@@ -169,4 +266,11 @@ ENTRYPOINT [\"cargo\", \"run\"]",
 
 fn add_image_to_repo(_local_tag: ImageTag) -> DistributionResult<ImageTag> {
     unimplemented!()
+}
+
+impl Drop for K8s {
+    fn drop(&mut self) {
+        // we need to empty out the local registry to avoid build up and potential collisions.
+        unimplemented!()
+    }
 }
