@@ -209,8 +209,8 @@ fn setup_repo(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<Url> 
     // return local ip + the registry port
     let interfaces = get_if_addrs::get_if_addrs()?;
     for interface in &interfaces {
-        if interface.name == "en0" {
-            // todo support other network interfaces
+        if (interface.name == "en0") || (interface.name == "eth0") {
+            // todo support other network interfaces and figure out a better way to choose the interface
             let ip = interface.addr.ip();
             let ip_and_port = "http://".to_string() + &ip.to_string() + ":" + port;
             return Ok(Url::from_str(&ip_and_port)?);
