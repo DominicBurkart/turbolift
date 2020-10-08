@@ -17,11 +17,10 @@ use syn::export::Formatter;
 
 const K8S_NAMESPACE: &str = "turbolift";
 type ImageTag = String;
-type ServiceAddress = String;
 
 pub struct K8s {
     max_scale_n: u32,
-    fn_names_to_services: HashMap<String, ServiceAddress>,
+    fn_names_to_services: HashMap<String, Url>,
 }
 
 impl K8s {
@@ -57,6 +56,14 @@ impl std::fmt::Display for AutoscaleError {
     }
 }
 
+fn function_to_service_name(function_name: &str) -> String {
+    function_name.to_string() + "-service"
+}
+
+fn function_to_deployment_name(function_name: &str) -> String {
+    function_name.to_string() + "-deployment"
+}
+
 #[async_trait]
 impl DistributionPlatform for K8s {
     async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
@@ -66,15 +73,15 @@ impl DistributionPlatform for K8s {
         let service_client = Client::try_default().await?;
         let services: Api<Service> = Api::namespaced(service_client, K8S_NAMESPACE);
 
-        // generate image & host it on a local repo
-        let repo_url = setup_repo(function_name, project_tar)?;
+        // generate image & host it on a local registry
+        let registry_url = setup_registry(function_name, project_tar)?;
         let local_tag = make_image(function_name, project_tar)?;
-        let tag_in_repo = add_image_to_repo(local_tag)?;
-        let image_url = repo_url.join(&tag_in_repo)?;
+        let tag_in_reg = add_image_to_registry(local_tag)?;
+        let image_url = registry_url.join(&tag_in_reg)?;
 
         // make deployment
-        let deployment_name = function_name.to_string() + "-deployment";
-        let service_name = function_name.to_string() + "-service";
+        let deployment_name = function_to_deployment_name(function_name);
+        let service_name = function_to_service_name(function_name);
         let app_name = function_name.to_string();
         let deployment = serde_json::from_value(serde_json::json!({
             "apiVersion": "apps/v1",
@@ -101,7 +108,7 @@ impl DistributionPlatform for K8s {
                     "spec": {
                         "containers": [
                             {
-                                "name": tag_in_repo,
+                                "name": tag_in_reg,
                                 "image": image_url.as_str(),
                                 "ports": {
                                     "containerPort": 5000
@@ -135,7 +142,16 @@ impl DistributionPlatform for K8s {
                 }
             }
         }))?;
-        services.create(&PostParams::default(), &service).await?;
+        let service = services.create(&PostParams::default(), &service).await?;
+        let service_ip = format!(
+            "http://{}:5000",
+            service
+                .spec
+                .expect("no specification found for service")
+                .cluster_ip
+                .expect("no cluster ip found for service")
+        );
+        println!("service_ip {}", service_ip);
 
         // todo make sure that the pod and service were correctly started before returning
 
@@ -153,11 +169,8 @@ impl DistributionPlatform for K8s {
                 // ^ todo attach error context from child
             }
         }
-
-        self.fn_names_to_services.insert(
-            function_name.to_string(),
-            service_name + "." + K8S_NAMESPACE, // assume that we have a dns resolver
-        );
+        self.fn_names_to_services
+            .insert(function_name.to_string(), Url::from_str(&service_ip)?);
         // todo handle deleting the relevant service and deployment for each distributed function.
         Ok(())
     }
@@ -179,10 +192,10 @@ lazy_static! {
     static ref PORT_RE: Regex = Regex::new(r"0\.0\.0\.0:(\d+)->").unwrap();
 }
 
-fn setup_repo(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<Url> {
+fn setup_registry(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<Url> {
     // check if registry is already running locally
     let ps_output = Command::new("docker")
-        .args("ps -f name=registry".split(' '))
+        .args("ps -f name=turbolift-registry".split(' '))
         .output()?;
     if !ps_output.status.success() {
         return Err(anyhow::anyhow!(
@@ -194,10 +207,13 @@ fn setup_repo(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<Url> 
     let port = if num_lines == 1 {
         // registry not running. Start the registry.
         let status = Command::new("docker")
-            .args("run -d -p 5000:5000 --restart=always --name registry registry:2".split(' '))
+            .args(
+                "run -d -p 5000:5000 --restart=always --name turbolift-registry registry:2"
+                    .split(' '),
+            )
             .status()?; // todo choose an open port instead of just hoping 5000 is open
         if !status.success() {
-            return Err(anyhow::anyhow!("repo setup failed"));
+            return Err(anyhow::anyhow!("registry setup failed"));
         }
         "5000"
     } else {
@@ -264,13 +280,45 @@ ENTRYPOINT [\"cargo\", \"run\", \"127.0.0.1:5000\"]",
     result
 }
 
-fn add_image_to_repo(_local_tag: ImageTag) -> DistributionResult<ImageTag> {
+fn add_image_to_registry(_local_tag: ImageTag) -> DistributionResult<ImageTag> {
     unimplemented!()
 }
 
 impl Drop for K8s {
     fn drop(&mut self) {
-        // we need to empty out the local registry to avoid build up and potential collisions.
-        unimplemented!()
+        // delete the associated services and deployments from the functions we distributed
+        async_std::task::block_on(async {
+            let deployment_client = Client::try_default().await.unwrap();
+            let deployments: Api<Deployment> = Api::namespaced(deployment_client, K8S_NAMESPACE);
+            let service_client = Client::try_default().await.unwrap();
+            let services: Api<Service> = Api::namespaced(service_client, K8S_NAMESPACE);
+
+            let distributed_functions = self.fn_names_to_services.keys();
+            for function in distributed_functions {
+                let service = function_to_service_name(function);
+                services
+                    .delete(&service, &Default::default())
+                    .await
+                    .unwrap();
+                let deployment = function_to_deployment_name(function);
+                deployments
+                    .delete(&deployment, &Default::default())
+                    .await
+                    .unwrap();
+            }
+        });
+
+        // delete the local registry
+        let registry_deletion_status = Command::new("docker")
+            .arg("rmi")
+            .arg("$(docker images |grep 'turbolift-registry')")
+            .status()
+            .unwrap();
+        if !registry_deletion_status.success() {
+            eprintln!(
+                "could not delete turblift registry docker image. error code: {}",
+                registry_deletion_status.code().unwrap()
+            );
+        }
     }
 }
