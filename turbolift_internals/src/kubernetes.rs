@@ -8,12 +8,13 @@ use k8s_openapi::api::core::v1::Service;
 use kube::api::{Api, PostParams};
 use kube::Client;
 use regex::Regex;
+use syn::export::Formatter;
 use url::Url;
 
 use crate::distributed_platform::{
     ArgsString, DistributionPlatform, DistributionResult, JsonResponse,
 };
-use syn::export::Formatter;
+use crate::utils::get_open_socket;
 
 const K8S_NAMESPACE: &str = "turbolift";
 type ImageTag = String;
@@ -206,20 +207,27 @@ fn setup_registry(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<U
     let num_lines = utf8.as_str().lines().count();
     let port = if num_lines == 1 {
         // registry not running. Start the registry.
+        let port = get_open_socket()?.local_addr()?.port().to_string(); // todo hack
+        let args_str = format!(
+            "run -d -p {}:5000 --restart=always --name turbolift-registry registry:2",
+            port
+        );
         let status = Command::new("docker")
-            .args(
-                "run -d -p 5000:5000 --restart=always --name turbolift-registry registry:2"
-                    .split(' '),
-            )
-            .status()?; // todo choose an open port instead of just hoping 5000 is open
+            .args(args_str.as_str().split(' '))
+            .status()?;
         if !status.success() {
             return Err(anyhow::anyhow!("registry setup failed"));
         }
-        "5000"
+        port
     } else {
-        // registry is running. Return for already-running registry.
-        // todo we should always start a new registry, just with a new port
-        PORT_RE.captures(&utf8).unwrap().get(1).unwrap().as_str()
+        // turbolift-registry is running. Return for already-running registry.
+        PORT_RE
+            .captures(&utf8)
+            .unwrap()
+            .get(1)
+            .unwrap()
+            .as_str()
+            .to_string()
     };
 
     // return local ip + the registry port
@@ -228,7 +236,7 @@ fn setup_registry(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<U
         if (interface.name == "en0") || (interface.name == "eth0") {
             // todo support other network interfaces and figure out a better way to choose the interface
             let ip = interface.addr.ip();
-            let ip_and_port = "http://".to_string() + &ip.to_string() + ":" + port;
+            let ip_and_port = "http://".to_string() + &ip.to_string() + ":" + &port;
             return Ok(Url::from_str(&ip_and_port)?);
         }
     }
