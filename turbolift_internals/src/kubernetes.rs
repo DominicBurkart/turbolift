@@ -19,18 +19,30 @@ use crate::utils::get_open_socket;
 const K8S_NAMESPACE: &str = "turbolift";
 type ImageTag = String;
 
+/// `K8s` is the interface for turning rust functions into autoscaling microservices
+/// using turbolift. It requires docker and kubernetes / kubectl to already be setup on the
+/// device at runtime.
+///
+/// Access to the kubernetes cluster must be inferrable from the env variables at runtime.
 pub struct K8s {
     max_scale_n: u32,
     fn_names_to_services: HashMap<String, Url>,
 }
 
 impl K8s {
-    /// returns a k8s object that does not perform autoscaling.
+    /// returns a K8s object that does not perform autoscaling.
     pub fn new() -> K8s {
         K8s::with_max_replicas(1)
     }
 
+    /// returns a K8s object. If max is equal to 1, then autoscaling
+    /// is not enabled. Otherwise, autoscale is automatically activated
+    /// with cluster defaults and a max number of replicas *per distributed
+    /// function* of `max`. Panics if `max` < 1.
     pub fn with_max_replicas(max: u32) -> K8s {
+        if max < 1 {
+            panic!("max < 1 while instantiating k8s (value: {})", max)
+        }
         K8s {
             max_scale_n: max,
             fn_names_to_services: HashMap::new(),
@@ -241,7 +253,7 @@ fn setup_registry(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<U
         }
     }
     Err(anyhow::anyhow!(
-        "no en0 interface found. interfaces: {:?}",
+        "no en0/eth0 interface found. interfaces: {:?}",
         interfaces
     ))
 }
