@@ -273,7 +273,7 @@ COPY {} {}
 RUN cat {} | tar xvf -
 WORKDIR {}
 RUN cargo build --release
-ENTRYPOINT [\"cargo\", \"run\", \"--release\", \"127.0.0.1:5000\"]",
+CMD cargo run --release 127.0.0.1:5000",
         tar_file_name, tar_file_name, tar_file_name, function_name
     );
     std::fs::write(&dockerfile_path, docker_file)?;
