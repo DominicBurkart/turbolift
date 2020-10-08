@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::str::FromStr;
+
+use pathdiff::diff_paths;
 
 use crate::utils::symlink_dir;
 
@@ -59,7 +62,11 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
             } else {
                 symlink_dir(&canonical, &dep_location)?;
             }
-            *buf = dep_location.canonicalize().unwrap();
+
+            let proj_folder = cargo_path.parent().unwrap().canonicalize().unwrap();
+            let rel_dep_location = diff_paths(&dep_location, &proj_folder).unwrap();
+            let relative_path = PathBuf::from_str(".")?.join(&rel_dep_location);
+            *buf = relative_path;
         }
     }
 

@@ -31,6 +31,7 @@ async-std = "1.6"
 async-trait = "0.1"
 get_if_addrs = "0.5.3"
 regex = "1"
+pathdiff = "0.2.0"
 
 # kubernetes-specific requirements
 kube = "0.42.0"
