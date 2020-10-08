@@ -189,10 +189,20 @@ impl DistributionPlatform for K8s {
 
     async fn dispatch(
         &mut self,
-        _function_name: &str,
-        _params: ArgsString,
+        function_name: &str,
+        params: ArgsString,
     ) -> DistributionResult<JsonResponse> {
-        unimplemented!()
+        async fn get(query_url: Url) -> String {
+            surf::get(query_url).recv_string().await.unwrap()
+        }
+
+        // request from server
+        let address_and_port = self.fn_names_to_services.get(function_name).unwrap();
+        let prefixed_params = "./".to_string() + function_name + "/" + &params;
+        let query_url = address_and_port.join(&prefixed_params)?;
+        let response = async_std::task::block_on(get(query_url));
+        // ^ todo not sure why futures are hanging here unless I wrap them in a new block_on?
+        Ok(response)
     }
 
     fn has_declared(&self, fn_name: &str) -> bool {
