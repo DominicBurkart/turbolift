@@ -88,8 +88,7 @@ impl DistributionPlatform for K8s {
 
         // generate image & host it on a local registry
         let registry_url = setup_registry(function_name, project_tar)?;
-        let local_tag = make_image(function_name, project_tar)?;
-        let tag_in_reg = add_image_to_registry(local_tag)?;
+        let tag_in_reg = make_image(function_name, project_tar, &registry_url)?;
         let image_url = registry_url.join(&tag_in_reg)?;
 
         // make deployment
@@ -258,7 +257,11 @@ fn setup_registry(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<U
     ))
 }
 
-fn make_image(function_name: &str, project_tar: &[u8]) -> anyhow::Result<ImageTag> {
+fn make_image(
+    function_name: &str,
+    project_tar: &[u8],
+    registry_url: &Url,
+) -> anyhow::Result<ImageTag> {
     println!("making image");
     // set up directory and dockerfile
     let build_dir = std::path::PathBuf::from(format!("{}_k8s_temp_dir", function_name));
@@ -286,23 +289,35 @@ CMD cargo run --release 127.0.0.1:5000",
             function_name,
             build_dir_canonical.to_string_lossy()
         );
-        let status = Command::new("docker")
+        let build_status = Command::new("docker")
             .args(build_cmd.as_str().split(' '))
             .status()?;
 
         // make sure that build completed successfully
-        if !status.success() {
+        if !build_status.success() {
             return Err(anyhow::anyhow!("docker image build failure"));
         }
-        Ok(function_name.to_string())
+
+        // push image to local repo
+        let image_tag = format!(
+            "{}:{}/{}",
+            registry_url.host_str().unwrap(),
+            registry_url.port().unwrap(),
+            function_name
+        );
+        let push_status = Command::new("docker")
+            .arg("push")
+            .arg(&image_tag)
+            .status()?;
+        if !push_status.success() {
+            return Err(anyhow::anyhow!("docker image push failure"));
+        }
+
+        Ok(image_tag)
     })();
     // always remove the build directory, even on build error
     std::fs::remove_dir_all(build_dir_canonical)?;
     result
-}
-
-fn add_image_to_registry(_local_tag: ImageTag) -> DistributionResult<ImageTag> {
-    unimplemented!()
 }
 
 impl Drop for K8s {
