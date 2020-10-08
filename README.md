@@ -17,7 +17,8 @@ full projects with working syntax examples.
 ## Distribution as an afterthought.
 Turbolift allows developers to turn normal rust functions into distributed services 
  just by tagging them with a macro. This lets you develop in a monorepo environment, 
-but benefit from the scalability of microservice architectures.
+but benefit from the scalability of microservice architectures. Right now, Turbolift 
+only works with K8s, though it's designed to be extended to other cluster management utilities.
 
 ## Orchestration with a feature flag.
 For quicker development builds, `cargo build` doesn't build the distributed version of your code by default.
