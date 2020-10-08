@@ -272,7 +272,8 @@ fn make_image(function_name: &str, project_tar: &[u8]) -> anyhow::Result<ImageTa
 COPY {} {}
 RUN cat {} | tar xvf -
 WORKDIR {}
-ENTRYPOINT [\"cargo\", \"run\", \"127.0.0.1:5000\"]",
+RUN cargo build --release
+ENTRYPOINT [\"cargo\", \"run\", \"--release\", \"127.0.0.1:5000\"]",
         tar_file_name, tar_file_name, tar_file_name, function_name
     );
     std::fs::write(&dockerfile_path, docker_file)?;
