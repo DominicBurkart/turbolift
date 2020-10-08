@@ -197,9 +197,9 @@ impl DistributionPlatform for K8s {
         }
 
         // request from server
-        let address_and_port = self.fn_names_to_services.get(function_name).unwrap();
-        let prefixed_params = "./".to_string() + function_name + "/" + &params;
-        let query_url = address_and_port.join(&prefixed_params)?;
+        let service_base_url = self.fn_names_to_services.get(function_name).unwrap();
+        let args = "./".to_string() + function_name + "/" + &params;
+        let query_url = service_base_url.join(&args)?;
         let response = async_std::task::block_on(get(query_url));
         // ^ todo not sure why futures are hanging here unless I wrap them in a new block_on?
         Ok(response)
