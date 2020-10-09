@@ -285,8 +285,8 @@ fn make_image(
 COPY {} {}
 RUN cat {} | tar xvf -
 WORKDIR {}
-RUN cargo build --release
-CMD cargo run --release 127.0.0.1:5000",
+RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build --release
+CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --release 127.0.0.1:5000",
         tar_file_name, tar_file_name, tar_file_name, function_name
     );
     std::fs::write(&dockerfile_path, docker_file)?;
