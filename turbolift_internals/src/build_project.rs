@@ -4,14 +4,17 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
 
-use pathdiff::diff_paths;
-
 use crate::utils::symlink_dir;
 
-pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result<()> {
+pub fn edit_cargo_file(
+    original_project_source_dir: &Path,
+    cargo_path: &Path,
+    function_name: &str,
+) -> anyhow::Result<()> {
+    let local_deps_dir_name = ".local_deps";
     let mut parsed_toml: cargo_toml2::CargoToml = cargo_toml2::from_path(cargo_path)
         .unwrap_or_else(|_| panic!("toml at {:?} could not be read", cargo_path));
-    let relative_local_deps_cache = cargo_path.parent().unwrap().join(".local_deps");
+    let relative_local_deps_cache = cargo_path.parent().unwrap().join(local_deps_dir_name);
     fs::create_dir_all(&relative_local_deps_cache)?;
     let local_deps_cache = relative_local_deps_cache.canonicalize()?;
 
@@ -26,21 +29,17 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
     let details = deps
         .iter_mut()
         // only full dependency descriptions (not simple version number)
-        .filter_map(|(_name, dep)| match dep {
+        .filter_map(|(name, dep)| match dep {
             cargo_toml2::Dependency::Simple(_) => None,
-            cargo_toml2::Dependency::Full(detail) => Some(detail),
+            cargo_toml2::Dependency::Full(detail) => Some((name, detail)),
         });
     let mut completed_locations = HashSet::new();
-    for detail in details {
+    for (name, detail) in details {
         // only descriptions with a path
         if let Some(ref mut buf) = detail.path {
             // determine what the symlink for this dependency should be
-            let canonical = buf.canonicalize()?;
-            let dep_location = local_deps_cache.join(
-                &canonical
-                    .file_name()
-                    .unwrap_or_else(|| canonical.as_os_str()),
-            );
+            let canonical = original_project_source_dir.join(&buf).canonicalize()?;
+            let dep_location = local_deps_cache.join(name);
 
             // check that we don't have a naming error
             // todo: automatically handle naming conflicts by mangling the dep for one
@@ -63,10 +62,7 @@ pub fn edit_cargo_file(cargo_path: &Path, function_name: &str) -> anyhow::Result
                 symlink_dir(&canonical, &dep_location)?;
             }
 
-            let proj_folder = cargo_path.parent().unwrap().canonicalize().unwrap();
-            let rel_dep_location = diff_paths(&dep_location, &proj_folder).unwrap();
-            let relative_path = PathBuf::from_str(".")?.join(&rel_dep_location);
-            *buf = relative_path;
+            *buf = PathBuf::from_str(".")?.join(local_deps_dir_name).join(name);
         }
     }
 

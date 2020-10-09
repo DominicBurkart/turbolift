@@ -1,4 +1,5 @@
 use proc_macro2::TokenStream;
+use std::collections::VecDeque;
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
@@ -12,7 +13,6 @@ use syn::spanned::Spanned;
 
 use crate::distributed_platform::DistributionResult;
 use crate::CACHE_PATH;
-use std::collections::VecDeque;
 
 type TypedParams = syn::punctuated::Punctuated<syn::FnArg, syn::Token![,]>;
 type UntypedParams = syn::punctuated::Punctuated<Box<syn::Pat>, syn::Token![,]>;
@@ -166,28 +166,21 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
         .map(|entry| (dir.file_name().unwrap().into(), entry))
         .collect(); // ignore read errors
 
-    archive.append_dir(dir.file_name().unwrap(), dir).unwrap();
+    let tar_project_base_dir = dir.file_name().unwrap();
+
+    archive.append_dir(tar_project_base_dir, dir).unwrap();
     while !entries.is_empty() {
         let (entry_parent, entry) = entries.pop_front().unwrap();
         if entry.file_name().to_str() == Some("target") && entry.metadata().unwrap().is_dir() {
-            // in target directories, only pass release (if it exists)
-            let release_deps = entry.path().join("release/deps");
-            if release_deps.exists() {
-                let path = {
-                    if entry_parent == dir {
-                        PathBuf::from_str("target/release").unwrap()
-                    } else {
-                        entry_parent.join("target").join("release")
-                    }
-                };
-                archive.append_dir_all(path, release_deps).unwrap();
-            }
+            // ignore target
         } else {
             let entry_path_with_parent = entry_parent.join(entry.file_name());
             if entry.path().is_dir() {
                 // ^ bug: the metadata on symlinks sometimes say that they are not directories,
                 // so we have to metadata.is_dir() || (metadata.file_type().is_symlink() && entry.path().is_dir() )
-                if CACHE_PATH.file_name().unwrap() != entry.file_name() {
+                if CACHE_PATH.file_name().unwrap() == entry.file_name() {
+                    // don't include the cache
+                } else {
                     archive
                         .append_dir(&entry_path_with_parent, entry.path())
                         .unwrap();
@@ -195,10 +188,8 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
                         fs::read_dir(entry.path())
                             .unwrap()
                             .filter_map(Result::ok)
-                            .map(|child| (entry_path_with_parent.clone(), child)),
+                            .map(|child| (entry_parent.join(entry.file_name()), child)),
                     )
-                } else {
-                    // don't include the cache
                 }
             } else {
                 let mut f = fs::File::open(entry.path()).unwrap();

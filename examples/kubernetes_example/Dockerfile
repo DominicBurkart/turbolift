@@ -9,5 +9,5 @@ RUN  apt-get update \
   && rm -rf /var/lib/apt/lists/*
 RUN wget -O ./kind --show-progress "https://kind.sigs.k8s.io/dl/v0.9.0/kind-$(uname)-amd64"
 RUN chmod +x ./kind
-COPY ./ ./
-CMD sh examples/kubernetes_example/example_runtime.sh
+COPY ./ turbolift
+CMD sh turbolift/examples/kubernetes_example/example_runtime.sh

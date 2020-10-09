@@ -109,6 +109,11 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
     // modify cargo.toml (edit package info & add actix + json_serde deps)
     build_project::edit_cargo_file(
+        PathBuf::from_str(".")
+            .expect("could not find project dir")
+            .canonicalize()
+            .expect("could not canonicalize path to project dir")
+            .as_path(),
         &function_cache_proj_path.join("Cargo.toml"),
         &original_target_function_name,
     )

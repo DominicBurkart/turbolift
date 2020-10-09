@@ -1,7 +1,7 @@
 # error if any command fails
 set -e
 
-cd examples/kubernetes_example
+cd turbolift/examples/kubernetes_example
 
 # run non-distributed example without cluster in environment
 RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly test
