@@ -1,3 +1,4 @@
+repos:
 -    repo: local
      hooks:
         -   id: format
@@ -16,16 +17,32 @@
             types: [rust]
             pass_filenames: false
         -   id: check
-            name: Check
+            name: Cargo Check (local)
             description: Runs `cargo check` on the repository.
             entry: bash -c 'RUSTFLAGS='"'"'--cfg procmacro2_semver_exempt'"'"' cargo check "$@"' --
             language: system
             types: [ rust ]
             pass_filenames: false
         -   id: check
-            name: Check
+            name: Cargo Check (distributed)
             description: Runs `cargo check` on the repository with distributed flag
             entry: bash -c 'RUSTFLAGS='"'"'--cfg procmacro2_semver_exempt'"'"' cargo check --features distributed "$@"' --
             language: system
             types: [ rust ]
             pass_filenames: false
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v3.2.0
+  hooks:
+    - id: trailing-whitespace
+    - id: mixed-line-ending
+    - id: end-of-file-fixer
+    - id: detect-private-key
+    - id: check-merge-conflict
+    - id: check-toml
+    - id: check-yaml
+- repo: https://github.com/jumanjihouse/pre-commit-hooks
+  rev: 2.1.4
+  hooks:
+    - id: markdownlint
+    - id: shellcheck
+    - id: shfmt
