@@ -23,7 +23,9 @@ only works with K8s, though it's designed to be extended to other cluster manage
 ## Orchestration with a feature flag.
 For quicker development builds, `cargo build` doesn't build the distributed version of your code by default.
 Distribution is feature-gated so that it's easy to turn on (for example, in production), or off (for example, 
-while developing locally).
+while developing locally). Enabling a dependency feature is as simple as adding a couple of lines to your `Cargo.toml`. 
+Check out the examples directory to see how to add a new feature that triggers turbolift to run in distributed mode
+when activated.
 
 ## Important implementation notes
 - implemented over http using `reqwest` and `actix-web` (no current plans to refactor to use a lower level network protocol).
