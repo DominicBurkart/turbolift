@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 # error if any command fails
 set -e
 

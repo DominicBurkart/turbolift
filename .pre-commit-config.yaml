@@ -45,4 +45,3 @@ repos:
   hooks:
     - id: markdownlint
     - id: shellcheck
-    - id: shfmt

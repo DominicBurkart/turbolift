@@ -89,13 +89,16 @@ impl DistributionPlatform for K8s {
         // generate image & host it on a local registry
         let registry_url = setup_registry(function_name, project_tar)?;
         let tag_in_reg = make_image(function_name, project_tar, &registry_url)?;
-        let image_url = registry_url.join(&tag_in_reg)?;
+        let image_url = registry_url.join(&tag_in_reg)?.as_str().to_string();
 
         // make deployment
+        println!("wooo");
         let deployment_name = function_to_deployment_name(function_name);
         let service_name = function_to_service_name(function_name);
+        println!("got service_name");
         let app_name = function_name.to_string();
-        let deployment = serde_json::from_value(serde_json::json!({
+        println!("... app_name is fine...");
+        let deployment_json = serde_json::json!({
             "apiVersion": "apps/v1",
             "kind": "Deployment",
             "metadata": {
@@ -121,20 +124,25 @@ impl DistributionPlatform for K8s {
                         "containers": [
                             {
                                 "name": tag_in_reg,
-                                "image": image_url.as_str(),
-                                "ports": {
-                                    "containerPort": 5000
-                                }
+                                "image": image_url,
+                                "ports": [
+                                    {
+                                        "containerPort": 5000
+                                    }
+                                ]
                             },
                         ]
                     }
                 }
-
             }
-        }))?;
+        });
+        println!("deployment_json generated, {:?}", deployment_json);
+        let deployment = serde_json::from_value(deployment_json)?;
+        println!("made deployment: {:?}", deployment);
         deployments
             .create(&PostParams::default(), &deployment)
             .await?;
+        println!("created deployment");
 
         // make service pointing to deployment
         let service = serde_json::from_value(serde_json::json!({
@@ -154,7 +162,9 @@ impl DistributionPlatform for K8s {
                 }
             }
         }))?;
+        println!("made service");
         let service = services.create(&PostParams::default(), &service).await?;
+        println!("created service");
         let service_ip = format!(
             "http://{}:5000",
             service
@@ -308,25 +318,41 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --release 127.0.0.1:500
             return Err(anyhow::anyhow!("docker image build failure"));
         }
 
-        // push image to local repo
         let image_tag = format!(
-            "{}:{}/{}",
-            registry_url.host_str().unwrap(),
+            "localhost:{}/{}",
             registry_url.port().unwrap(),
             function_name
         );
+
+        println!("image tag: {}", image_tag);
+
+        // tag image
+        let tag_args = format!("image tag {} {}", function_name, image_tag);
+        let tag_result = Command::new("docker")
+            .args(tag_args.as_str().split(' '))
+            .status()?;
+        if !tag_result.success() {
+            return Err(anyhow::anyhow!("docker image tag failure"));
+        }
+
+        println!("image tag worked: {}", tag_args);
+
+        // push image to local repo
         let push_status = Command::new("docker")
             .arg("push")
-            .arg(&image_tag)
+            .arg(image_tag.clone())
             .status()?;
+        println!("docker push command did not explode");
         if !push_status.success() {
             return Err(anyhow::anyhow!("docker image push failure"));
         }
 
         Ok(image_tag)
     })();
+    println!("removing build dir");
     // always remove the build directory, even on build error
     std::fs::remove_dir_all(build_dir_canonical)?;
+    println!("returning res");
     result
 }
 
