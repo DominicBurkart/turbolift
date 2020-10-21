@@ -1,7 +1,6 @@
 use std::sync::Mutex;
 
 extern crate proc_macro;
-use async_std::task;
 use futures::future::try_join_all;
 use rand;
 use turbolift::local_queue::LocalQueue;
@@ -27,7 +26,8 @@ fn main() {
         }
         v
     };
-    let output = task::block_on(try_join_all(futures)).unwrap();
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    let output = rt.block_on(try_join_all(futures)).unwrap();
     println!("input: {:?}\noutput: {:?}", input, output);
 }
 
@@ -45,7 +45,8 @@ mod tests {
             }
             v
         };
-        let output = task::block_on(try_join_all(futures)).unwrap();
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let output = rt.block_on(try_join_all(futures)).unwrap();
         assert_eq!(input, output);
     }
 }

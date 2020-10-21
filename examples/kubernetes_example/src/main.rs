@@ -26,7 +26,8 @@ fn random_numbers() -> Vec<u64> {
 fn main() {
     let input = random_numbers();
     let futures = c![square(*int), for int in &input];
-    let output = async_std::task::block_on(try_join_all(futures)).unwrap();
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    let output = rt.block_on(try_join_all(futures)).unwrap();
     println!("input: {:?}\noutput: {:?}", input, output);
 }
 
@@ -38,7 +39,8 @@ mod tests {
     fn it_works() {
         let input = random_numbers();
         let futures = c![square(*int), for int in &input];
-        let output = async_std::task::block_on(try_join_all(futures)).unwrap();
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let output = rt.block_on(try_join_all(futures)).unwrap();
         assert_eq!(
             output,
             input.into_iter().map(|x| x * x).collect::<Vec<u64>>()
