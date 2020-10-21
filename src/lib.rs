@@ -1,6 +1,4 @@
 #[cfg(feature = "distributed")]
-pub use async_std;
-#[cfg(feature = "distributed")]
 pub use chrono;
 
 pub use actix_web;

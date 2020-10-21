@@ -160,7 +160,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             use std::time::Duration;
             use turbolift::distributed_platform::DistributionPlatform;
             use turbolift::DistributionResult;
-            use turbolift::async_std::task;
 
             let mut platform = #distribution_platform.lock()?;
 
