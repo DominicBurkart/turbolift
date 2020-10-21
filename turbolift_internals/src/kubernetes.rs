@@ -218,7 +218,10 @@ impl DistributionPlatform for K8s {
         let service_base_url = self.fn_names_to_services.get(function_name).unwrap();
         let args = "./".to_string() + function_name + "/" + &params;
         let query_url = service_base_url.join(&args)?;
-        let response = self.get(query_url).await?;
+
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let response = rt.block_on(self.get(query_url))?;
+        // ^ todo find out why this code errors if we don't spawn another runtime here
         Ok(response)
     }
 
