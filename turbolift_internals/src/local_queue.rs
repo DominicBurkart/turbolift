@@ -30,6 +30,15 @@ impl LocalQueue {
     pub fn new() -> LocalQueue {
         Default::default()
     }
+
+    async fn get(query_url: Url) -> String {
+        reqwest::get(query_url)
+            .await
+            .expect("error unwrapping local queue get response")
+            .text()
+            .await
+            .expect("error unwrapping local queue text response")
+    }
 }
 
 #[async_trait]
@@ -57,10 +66,6 @@ impl DistributionPlatform for LocalQueue {
         function_name: &str,
         params: ArgsString,
     ) -> DistributionResult<JsonResponse> {
-        async fn get(query_url: Url) -> String {
-            surf::get(query_url).recv_string().await.unwrap()
-        }
-
         let address_and_port = {
             if self.fn_name_to_address.contains_key(function_name) {
                 // the server is already initialized.
@@ -91,8 +96,7 @@ impl DistributionPlatform for LocalQueue {
         // request from server
         let prefixed_params = "./".to_string() + function_name + "/" + &params;
         let query_url = address_and_port.join(&prefixed_params)?;
-        let response = async_std::task::block_on(get(query_url));
-        // ^ todo not sure why futures are hanging here unless I wrap them in a new block_on?
+        let response = Self::get(query_url).await;
         Ok(response)
     }
 

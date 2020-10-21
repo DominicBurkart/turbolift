@@ -27,6 +27,7 @@ type ImageTag = String;
 pub struct K8s {
     max_scale_n: u32,
     fn_names_to_services: HashMap<String, Url>,
+    request_client: reqwest::Client,
 }
 
 impl K8s {
@@ -46,7 +47,18 @@ impl K8s {
         K8s {
             max_scale_n: max,
             fn_names_to_services: HashMap::new(),
+            request_client: reqwest::Client::new(),
         }
+    }
+
+    async fn get(&self, query_url: Url) -> DistributionResult<String> {
+        Ok(self
+            .request_client
+            .get(query_url)
+            .send()
+            .await?
+            .text()
+            .await?)
     }
 }
 
@@ -202,16 +214,11 @@ impl DistributionPlatform for K8s {
         function_name: &str,
         params: ArgsString,
     ) -> DistributionResult<JsonResponse> {
-        async fn get(query_url: Url) -> String {
-            surf::get(query_url).recv_string().await.unwrap()
-        }
-
         // request from server
         let service_base_url = self.fn_names_to_services.get(function_name).unwrap();
         let args = "./".to_string() + function_name + "/" + &params;
         let query_url = service_base_url.join(&args)?;
-        let response = async_std::task::block_on(get(query_url));
-        // ^ todo not sure why futures are hanging here unless I wrap them in a new block_on?
+        let response = self.get(query_url).await?;
         Ok(response)
     }
 
@@ -359,7 +366,9 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --release 127.0.0.1:500
 impl Drop for K8s {
     fn drop(&mut self) {
         // delete the associated services and deployments from the functions we distributed
-        async_std::task::block_on(async {
+
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
             let deployment_client = Client::try_default().await.unwrap();
             let deployments: Api<Deployment> = Api::namespaced(deployment_client, K8S_NAMESPACE);
             let service_client = Client::try_default().await.unwrap();
