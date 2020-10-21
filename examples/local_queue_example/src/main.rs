@@ -29,6 +29,9 @@ fn main() {
     let mut rt = tokio::runtime::Runtime::new().unwrap();
     let output = rt.block_on(try_join_all(futures)).unwrap();
     println!("input: {:?}\noutput: {:?}", input, output);
+    if output != input {
+        std::process::exit(1)
+    }
 }
 
 #[cfg(test)]
