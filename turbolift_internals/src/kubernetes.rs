@@ -219,9 +219,7 @@ impl DistributionPlatform for K8s {
         let args = "./".to_string() + function_name + "/" + &params;
         let query_url = service_base_url.join(&args)?;
 
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
-        let response = rt.block_on(self.get(query_url))?;
-        // ^ todo find out why this code errors if we don't spawn another runtime here
+        let response = self.get(query_url).await?;
         Ok(response)
     }
 
@@ -369,8 +367,11 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --release 127.0.0.1:500
 impl Drop for K8s {
     fn drop(&mut self) {
         // delete the associated services and deployments from the functions we distributed
-
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let mut rt = tokio::runtime::Builder::new()
+            .basic_scheduler()
+            .enable_all()
+            .build()
+            .expect("unable to instantiate basic scheduler in K8s Drop impl");
         rt.block_on(async {
             let deployment_client = Client::try_default().await.unwrap();
             let deployments: Api<Deployment> = Api::namespaced(deployment_client, K8S_NAMESPACE);

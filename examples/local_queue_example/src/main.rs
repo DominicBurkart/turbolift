@@ -26,7 +26,11 @@ fn main() {
         }
         v
     };
-    let mut rt = tokio::runtime::Runtime::new().unwrap();
+    let mut rt = tokio::runtime::Builder::new()
+        .threaded_scheduler()
+        .enable_all()
+        .build()
+        .expect("error starting runtime");
     let output = rt.block_on(try_join_all(futures)).unwrap();
     println!("input: {:?}\noutput: {:?}", input, output);
     if output != input {
@@ -48,7 +52,11 @@ mod tests {
             }
             v
         };
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let mut rt = tokio::runtime::Builder::new()
+            .threaded_scheduler()
+            .enable_all()
+            .build()
+            .expect("error starting runtime");
         let output = rt.block_on(try_join_all(futures)).unwrap();
         assert_eq!(input, output);
     }
