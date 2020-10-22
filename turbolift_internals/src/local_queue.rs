@@ -24,20 +24,12 @@ pub struct LocalQueue {
     fn_name_to_address: HashMap<FunctionName, AddressAndPort>, // todo hardcoded rn
     fn_name_to_process: HashMap<FunctionName, Child>,
     fn_name_to_binary_path: HashMap<FunctionName, std::path::PathBuf>,
+    request_client: reqwest::Client,
 }
 
 impl LocalQueue {
     pub fn new() -> LocalQueue {
         Default::default()
-    }
-
-    async fn get(query_url: Url) -> String {
-        reqwest::get(query_url)
-            .await
-            .expect("error unwrapping local queue get response")
-            .text()
-            .await
-            .expect("error unwrapping local queue text response")
     }
 }
 
@@ -97,9 +89,13 @@ impl DistributionPlatform for LocalQueue {
         let prefixed_params = "./".to_string() + function_name + "/" + &params;
         let query_url = address_and_port.join(&prefixed_params)?;
 
-        let handle = tokio::runtime::Handle::current();
-        let response = handle.block_on(Self::get(query_url));
-        Ok(response)
+        Ok(self
+            .request_client
+            .get(query_url)
+            .send()
+            .await?
+            .text()
+            .await?)
     }
 
     fn has_declared(&self, fn_name: &str) -> bool {

@@ -12,7 +12,7 @@ edition = "2018"
 rand = "0.7"
 futures = "0.3"
 lazy_static = "1"
-tokio = {version="0.2.22", features=["full"]}
+tokio = {version="0.3", features=["full"]}
 turbolift = { path="../../" }
 
 # these are dependencies that need to be bundled into turbolift, but debugging how to reexport proc macros is hard.

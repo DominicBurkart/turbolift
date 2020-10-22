@@ -20,7 +20,7 @@ toml = "0.5"
 cargo-toml2 = "1"
 tempfile = "3.1"
 reqwest = "0.10"
-tokio = { version = "0.2.22",    features = ["full"] }
+tokio = { version = "0.3",    features = ["full"] }
 surf = "1.0.3"
 cute = "0.3"
 rand = "0.7"

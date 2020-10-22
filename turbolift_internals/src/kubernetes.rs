@@ -50,16 +50,6 @@ impl K8s {
             request_client: reqwest::Client::new(),
         }
     }
-
-    async fn get(&self, query_url: Url) -> DistributionResult<String> {
-        Ok(self
-            .request_client
-            .get(query_url)
-            .send()
-            .await?
-            .text()
-            .await?)
-    }
 }
 
 impl Default for K8s {
@@ -218,9 +208,13 @@ impl DistributionPlatform for K8s {
         let service_base_url = self.fn_names_to_services.get(function_name).unwrap();
         let args = "./".to_string() + function_name + "/" + &params;
         let query_url = service_base_url.join(&args)?;
-        let handle = tokio::runtime::Handle::current();
-        let response = handle.block_on(self.get(query_url))?;
-        Ok(response)
+        Ok(self
+            .request_client
+            .get(query_url)
+            .send()
+            .await?
+            .text()
+            .await?)
     }
 
     fn has_declared(&self, fn_name: &str) -> bool {
@@ -367,11 +361,7 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --release 127.0.0.1:500
 impl Drop for K8s {
     fn drop(&mut self) {
         // delete the associated services and deployments from the functions we distributed
-        let mut rt = tokio::runtime::Builder::new()
-            .basic_scheduler()
-            .enable_all()
-            .build()
-            .expect("unable to instantiate basic scheduler in K8s Drop impl");
+        let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let deployment_client = Client::try_default().await.unwrap();
             let deployments: Api<Deployment> = Api::namespaced(deployment_client, K8S_NAMESPACE);
