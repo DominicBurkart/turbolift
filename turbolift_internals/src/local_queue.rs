@@ -97,7 +97,8 @@ impl DistributionPlatform for LocalQueue {
         let prefixed_params = "./".to_string() + function_name + "/" + &params;
         let query_url = address_and_port.join(&prefixed_params)?;
 
-        let response = Self::get(query_url).await;
+        let handle = tokio::runtime::Handle::current();
+        let response = handle.block_on(Self::get(query_url));
         Ok(response)
     }
 
