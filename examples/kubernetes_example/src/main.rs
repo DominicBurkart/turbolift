@@ -26,7 +26,8 @@ fn random_numbers() -> Vec<u64> {
 fn main() {
     let input = random_numbers();
     let futures = c![square(*int), for int in &input];
-    let mut rt = tokio::runtime::Builder::new_multi_thread()
+    let mut rt = tokio::runtime::Builder::new()
+        .threaded_scheduler()
         .enable_all()
         .build()
         .unwrap();
@@ -45,7 +46,8 @@ mod tests {
     fn it_works() {
         let input = random_numbers();
         let futures = c![square(*int), for int in &input];
-        let mut rt = tokio::runtime::Builder::new_multi_thread()
+        let mut rt = tokio::runtime::Builder::new()
+            .threaded_scheduler()
             .enable_all()
             .build()
             .unwrap();

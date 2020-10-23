@@ -364,7 +364,7 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --release 127.0.0.1:500
 impl Drop for K8s {
     fn drop(&mut self) {
         // delete the associated services and deployments from the functions we distributed
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let deployment_client = Client::try_default().await.unwrap();
             let deployments: Api<Deployment> = Api::namespaced(deployment_client, K8S_NAMESPACE);

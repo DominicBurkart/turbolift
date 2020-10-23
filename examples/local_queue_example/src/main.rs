@@ -26,7 +26,8 @@ fn main() {
         }
         v
     };
-    let mut rt = tokio::runtime::Builder::new_multi_thread()
+    let mut rt = tokio::runtime::Builder::new()
+        .threaded_scheduler()
         .enable_all()
         .build()
         .unwrap();
@@ -51,7 +52,8 @@ mod tests {
             }
             v
         };
-        let mut rt = tokio::runtime::Builder::new_multi_thread()
+        let mut rt = tokio::runtime::Builder::new()
+            .threaded_scheduler()
             .enable_all()
             .build()
             .unwrap();
