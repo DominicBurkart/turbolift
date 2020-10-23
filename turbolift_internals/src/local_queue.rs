@@ -89,13 +89,16 @@ impl DistributionPlatform for LocalQueue {
         let prefixed_params = "./".to_string() + function_name + "/" + &params;
         let query_url = address_and_port.join(&prefixed_params)?;
 
-        Ok(self
+        println!("sending dispatch request to {:?}", query_url);
+        let resp = Ok(self
             .request_client
             .get(query_url)
             .send()
             .await?
             .text()
-            .await?)
+            .await?);
+        println!("dispatch returning: {:?}", resp);
+        resp
     }
 
     fn has_declared(&self, fn_name: &str) -> bool {

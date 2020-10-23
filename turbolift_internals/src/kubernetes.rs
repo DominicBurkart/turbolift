@@ -208,13 +208,16 @@ impl DistributionPlatform for K8s {
         let service_base_url = self.fn_names_to_services.get(function_name).unwrap();
         let args = "./".to_string() + function_name + "/" + &params;
         let query_url = service_base_url.join(&args)?;
-        Ok(self
+        println!("sending dispatch request to {:?}", query_url);
+        let resp = Ok(self
             .request_client
             .get(query_url)
             .send()
             .await?
             .text()
-            .await?)
+            .await?);
+        println!("dispatch returning: {:?}", resp);
+        resp
     }
 
     fn has_declared(&self, fn_name: &str) -> bool {
