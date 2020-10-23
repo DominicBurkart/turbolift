@@ -19,7 +19,7 @@ tar = "0.4"
 toml = "0.5"
 cargo-toml2 = "1"
 tempfile = "3.1"
-reqwest = "0.10"
+reqwest = {repository="https://github.com/DominicBurkart/reqwest"}
 tokio = { version = "0.3",    features = ["full"] }
 surf = "1.0.3"
 cute = "0.3"
@@ -33,6 +33,6 @@ get_if_addrs = "0.5.3"
 regex = "1"
 
 # kubernetes-specific requirements
-kube = { repository = "https://github.com/DominicBurkart/kube-rs" }
-kube-runtime = { repository = "https://github.com/DominicBurkart/kube-rs" }
+kube = "0.43.0"
+kube-runtime = "0.43.0"
 k8s-openapi = { version = "0.9.0", default-features = false, features = ["v1_17"] }
