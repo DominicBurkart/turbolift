@@ -21,7 +21,6 @@ cargo-toml2 = "1"
 tempfile = "3.1"
 reqwest = {repository="https://github.com/DominicBurkart/reqwest"}
 tokio = { version = "0.3",    features = ["full"] }
-surf = "1.0.3"
 cute = "0.3"
 rand = "0.7"
 url = "2"
