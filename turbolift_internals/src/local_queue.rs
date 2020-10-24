@@ -70,10 +70,13 @@ impl DistributionPlatform for LocalQueue {
                 let server_url: AddressAndPort =
                     Url::parse(&("http://".to_string() + server_address_and_port_str))?;
                 let executable = self.fn_name_to_binary_path.get(function_name).unwrap();
+                println!("spawning");
                 let server_handle = Command::new(executable)
                     .arg(&server_address_and_port_str)
                     .spawn()?;
+                println!("delaying");
                 tokio::time::delay_for(Duration::from_secs(60)).await;
+                println!("delay completed");
                 // ^ sleep to make sure the server is initialized before continuing
                 self.fn_name_to_address
                     .insert(function_name.to_string(), server_url.clone());

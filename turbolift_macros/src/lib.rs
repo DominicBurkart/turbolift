@@ -135,6 +135,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     // ^ todo
 
     // compress project source files
+    println!("on: build complete");
     let project_source_binary = {
         let tar = extract_function::make_compressed_proj_src(&function_cache_proj_path);
         let tar_file = CACHE_PATH.join(original_target_function_name.clone() + "_source.tar");
@@ -149,6 +150,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         ))
         .expect("syntax error while embedding project tar.")
     };
+    println!("on: project_source_binary complete");
 
     // generate API function for the microservice
     let declare_and_dispatch = q! {
@@ -164,18 +166,22 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             let mut platform = #distribution_platform.lock()?;
 
             if !platform.has_declared(#original_target_function_name) {
+                println!("launching declare");
                 platform
                     .declare(#original_target_function_name, #project_source_binary)
                     .await?;
+                println!("declare completed");
             }
 
             let params = #params_vec.join("/");
 
+            println!("launching dispatch");
             let resp_string = platform
                 .dispatch(
                     #original_target_function_name,
                     params.to_string()
                 ).await?;
+            println!("dispatch completed");
             Ok(turbolift::serde_json::from_str(&resp_string)?)
         }
     };
