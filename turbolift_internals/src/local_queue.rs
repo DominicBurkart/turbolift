@@ -2,7 +2,6 @@ extern crate proc_macro;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use std::thread::sleep;
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -74,9 +73,8 @@ impl DistributionPlatform for LocalQueue {
                 let server_handle = Command::new(executable)
                     .arg(&server_address_and_port_str)
                     .spawn()?;
-                sleep(Duration::from_secs(30));
+                tokio::time::delay_for(Duration::from_secs(60)).await;
                 // ^ sleep to make sure the server is initialized before continuing
-                // todo: here and with the GET request, futures hang indefinitely. To investigate.
                 self.fn_name_to_address
                     .insert(function_name.to_string(), server_url.clone());
                 self.fn_name_to_process
