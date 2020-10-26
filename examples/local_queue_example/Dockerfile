@@ -4,8 +4,8 @@ COPY ./ turbolift
 WORKDIR turbolift/examples/local_queue_example
 
 # test
-RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly test
-RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly test --features distributed
+RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly test -- --nocapture
+RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly test --features distributed -- --nocapture
 
 # run
 RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly run
