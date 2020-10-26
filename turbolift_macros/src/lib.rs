@@ -48,6 +48,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     // todo make code below hygienic in case sanitized_file also imports from actix_web
     let main_file = q! {
         use turbolift::actix_web::{self, get, web, HttpResponse, Result};
+        use turbolift::tokio_compat_02::FutureExt;
 
         #sanitized_file
         #dummy_function
@@ -76,6 +77,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             )
             .bind(ip_and_port)?
             .run()
+            .compat()
             .await
         }
     };
@@ -162,6 +164,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             use std::time::Duration;
             use turbolift::distributed_platform::DistributionPlatform;
             use turbolift::DistributionResult;
+            use turbolift::tokio_compat_02::FutureExt;
 
             let mut platform = #distribution_platform.lock()?;
 
@@ -169,6 +172,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                 println!("launching declare");
                 platform
                     .declare(#original_target_function_name, #project_source_binary)
+                    .compat()
                     .await?;
                 println!("declare completed");
             }
@@ -180,7 +184,9 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                 .dispatch(
                     #original_target_function_name,
                     params.to_string()
-                ).await?;
+                )
+                .compat()
+                .await?;
             println!("dispatch completed");
             Ok(turbolift::serde_json::from_str(&resp_string)?)
         }

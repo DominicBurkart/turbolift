@@ -26,11 +26,7 @@ fn main() {
         }
         v
     };
-    let mut rt = tokio::runtime::Builder::new()
-        .threaded_scheduler()
-        .enable_all()
-        .build()
-        .unwrap();
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
     let output = rt.block_on(try_join_all(futures)).unwrap();
     println!("input: {:?}\noutput: {:?}", input, output);
     if output != input {
@@ -44,6 +40,7 @@ mod tests {
 
     #[test]
     fn it_works() {
+        println!("test started");
         let input = vec![rand::random(), rand::random(), rand::random()];
         let futures = {
             let mut v = Vec::new();
@@ -52,11 +49,7 @@ mod tests {
             }
             v
         };
-        let mut rt = tokio::runtime::Builder::new()
-            .threaded_scheduler()
-            .enable_all()
-            .build()
-            .unwrap();
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
         let output = rt.block_on(try_join_all(futures)).unwrap();
         assert_eq!(input, output);
     }

@@ -9,6 +9,7 @@ use kube::api::{Api, PostParams};
 use kube::Client;
 use regex::Regex;
 use syn::export::Formatter;
+use tokio_compat_02::FutureExt;
 use url::Url;
 
 use crate::distributed_platform::{
@@ -83,9 +84,9 @@ fn function_to_deployment_name(function_name: &str) -> String {
 impl DistributionPlatform for K8s {
     async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
         // connect to cluster. tries in-cluster configuration first, then falls back to kubeconfig file.
-        let deployment_client = Client::try_default().await?;
+        let deployment_client = Client::try_default().compat().await?;
         let deployments: Api<Deployment> = Api::namespaced(deployment_client, K8S_NAMESPACE);
-        let service_client = Client::try_default().await?;
+        let service_client = Client::try_default().compat().await?;
         let services: Api<Service> = Api::namespaced(service_client, K8S_NAMESPACE);
 
         // generate image & host it on a local registry
@@ -143,6 +144,7 @@ impl DistributionPlatform for K8s {
         println!("made deployment: {:?}", deployment);
         deployments
             .create(&PostParams::default(), &deployment)
+            .compat()
             .await?;
         println!("created deployment");
 
@@ -165,7 +167,10 @@ impl DistributionPlatform for K8s {
             }
         }))?;
         println!("made service");
-        let service = services.create(&PostParams::default(), &service).await?;
+        let service = services
+            .create(&PostParams::default(), &service)
+            .compat()
+            .await?;
         println!("created service");
         let service_ip = format!(
             "http://{}:5000",
@@ -213,8 +218,10 @@ impl DistributionPlatform for K8s {
             .request_client
             .get(query_url)
             .send()
+            .compat()
             .await?
             .text()
+            .compat()
             .await?);
         println!("dispatch returning: {:?}", resp);
         resp
@@ -364,11 +371,11 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --release 127.0.0.1:500
 impl Drop for K8s {
     fn drop(&mut self) {
         // delete the associated services and deployments from the functions we distributed
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let deployment_client = Client::try_default().await.unwrap();
+            let deployment_client = Client::try_default().compat().await.unwrap();
             let deployments: Api<Deployment> = Api::namespaced(deployment_client, K8S_NAMESPACE);
-            let service_client = Client::try_default().await.unwrap();
+            let service_client = Client::try_default().compat().await.unwrap();
             let services: Api<Service> = Api::namespaced(service_client, K8S_NAMESPACE);
 
             let distributed_functions = self.fn_names_to_services.keys();
@@ -376,11 +383,13 @@ impl Drop for K8s {
                 let service = function_to_service_name(function);
                 services
                     .delete(&service, &Default::default())
+                    .compat()
                     .await
                     .unwrap();
                 let deployment = function_to_deployment_name(function);
                 deployments
                     .delete(&deployment, &Default::default())
+                    .compat()
                     .await
                     .unwrap();
             }

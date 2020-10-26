@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use std::process::{Child, Command};
+use tokio_compat_02::FutureExt;
 use url::Url;
 
 use crate::build_project::make_executable;
@@ -75,7 +76,7 @@ impl DistributionPlatform for LocalQueue {
                     .arg(&server_address_and_port_str)
                     .spawn()?;
                 println!("delaying");
-                tokio::time::delay_for(Duration::from_secs(60)).await;
+                tokio::time::sleep(Duration::from_secs(60)).await;
                 println!("delay completed");
                 // ^ sleep to make sure the server is initialized before continuing
                 self.fn_name_to_address
@@ -95,8 +96,10 @@ impl DistributionPlatform for LocalQueue {
             .request_client
             .get(query_url)
             .send()
+            .compat()
             .await?
             .text()
+            .compat()
             .await?);
         println!("dispatch returning: {:?}", resp);
         resp

@@ -17,3 +17,4 @@ turbolift_internals = { path = "./turbolift_internals" }
 chrono = { version = "0.4", optional = true }
 actix-web = { version = "3" }
 serde_json = { version = "1" }
+tokio-compat-02 = { version = "0.1" }

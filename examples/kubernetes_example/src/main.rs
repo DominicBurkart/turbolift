@@ -26,11 +26,7 @@ fn random_numbers() -> Vec<u64> {
 fn main() {
     let input = random_numbers();
     let futures = c![square(*int), for int in &input];
-    let mut rt = tokio::runtime::Builder::new()
-        .threaded_scheduler()
-        .enable_all()
-        .build()
-        .unwrap();
+    let mut rt = tokio::runtime::Runtime::new().unwrap();
     let output = rt.block_on(try_join_all(futures)).unwrap();
     println!("input: {:?}\noutput: {:?}", input, output);
     if output != c![x*x, for x in input] {
@@ -46,11 +42,7 @@ mod tests {
     fn it_works() {
         let input = random_numbers();
         let futures = c![square(*int), for int in &input];
-        let mut rt = tokio::runtime::Builder::new()
-            .threaded_scheduler()
-            .enable_all()
-            .build()
-            .unwrap();
+        let mut rt = tokio::runtime::Runtime::new().unwrap();
         let output = rt.block_on(try_join_all(futures)).unwrap();
         assert_eq!(
             output,

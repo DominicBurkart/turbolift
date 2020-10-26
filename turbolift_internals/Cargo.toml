@@ -20,7 +20,8 @@ toml = "0.5"
 cargo-toml2 = "1"
 tempfile = "3.1"
 reqwest = {repository="https://github.com/DominicBurkart/reqwest"}
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.3", features = ["full"] }
+tokio-compat-02 = "0.1"
 cute = "0.3"
 rand = "0.7"
 url = "2"
