@@ -166,7 +166,11 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             use turbolift::DistributionResult;
             use turbolift::tokio_compat_02::FutureExt;
 
+            println!("in original target function");
+
             let mut platform = #distribution_platform.lock()?;
+
+            println!("platform generated");
 
             if !platform.has_declared(#original_target_function_name) {
                 println!("launching declare");
