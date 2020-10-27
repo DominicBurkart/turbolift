@@ -122,7 +122,9 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     .expect("error editing cargo file");
 
     // lint project
-    build_project::lint(&function_cache_proj_path).expect("linting error");
+    if let Err(e) = build_project::lint(&function_cache_proj_path) {
+        eprintln!("ignoring linting error: {:?}", e)
+    }
 
     // check project and give errors
     build_project::check(&function_cache_proj_path).expect("error checking function");
@@ -168,7 +170,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
             println!("in original target function");
 
-            let mut platform = #distribution_platform.lock()?;
+            let mut platform = #distribution_platform.lock().await;
 
             println!("platform generated");
 
