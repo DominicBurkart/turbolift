@@ -10,7 +10,7 @@ RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly test -- --nocapture
 RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly run
 
 # setup cluster (will be used in all tests & runs)
-../../../kind create cluster
+../../../kind create cluster --wait 20m
 
 # run same tests with cluster in environment
 RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly test -- --nocapture
