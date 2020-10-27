@@ -1,11 +1,11 @@
-use std::sync::Mutex;
-
 #[macro_use]
 extern crate lazy_static;
 #[macro_use(c)]
 extern crate cute;
 use futures::future::try_join_all;
 use rand::{thread_rng, Rng};
+use tokio::sync::Mutex;
+
 use turbolift::kubernetes::K8s;
 use turbolift::on;
 

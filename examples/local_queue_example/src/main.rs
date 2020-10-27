@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 extern crate proc_macro;
 use futures::future::try_join_all;
 use rand;
@@ -7,6 +5,7 @@ use turbolift::local_queue::LocalQueue;
 use turbolift::on;
 #[macro_use]
 extern crate lazy_static;
+use tokio::sync::Mutex;
 
 lazy_static! {
     static ref LOCAL: Mutex<LocalQueue> = Mutex::new(LocalQueue::new());
