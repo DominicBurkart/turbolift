@@ -17,7 +17,7 @@ use crate::distributed_platform::{
 };
 use crate::utils::get_open_socket;
 
-const K8S_NAMESPACE: &str = "turbolift";
+const K8S_NAMESPACE: &str = "default";
 type ImageTag = String;
 
 /// `K8s` is the interface for turning rust functions into autoscaling microservices
