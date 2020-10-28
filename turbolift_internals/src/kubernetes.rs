@@ -17,7 +17,7 @@ use crate::distributed_platform::{
 };
 use crate::utils::get_open_socket;
 
-const K8S_NAMESPACE: &str = "default";
+const TURBOLIFT_K8S_NAMESPACE: &str = "default";
 type ImageTag = String;
 
 /// `K8s` is the interface for turning rust functions into autoscaling microservices
@@ -85,9 +85,10 @@ impl DistributionPlatform for K8s {
     async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
         // connect to cluster. tries in-cluster configuration first, then falls back to kubeconfig file.
         let deployment_client = Client::try_default().compat().await?;
-        let deployments: Api<Deployment> = Api::namespaced(deployment_client, K8S_NAMESPACE);
+        let deployments: Api<Deployment> =
+            Api::namespaced(deployment_client, TURBOLIFT_K8S_NAMESPACE);
         let service_client = Client::try_default().compat().await?;
-        let services: Api<Service> = Api::namespaced(service_client, K8S_NAMESPACE);
+        let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
 
         // generate image & host it on a local registry
         let registry_url = setup_registry(function_name, project_tar)?;
@@ -374,9 +375,10 @@ impl Drop for K8s {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             let deployment_client = Client::try_default().compat().await.unwrap();
-            let deployments: Api<Deployment> = Api::namespaced(deployment_client, K8S_NAMESPACE);
+            let deployments: Api<Deployment> =
+                Api::namespaced(deployment_client, TURBOLIFT_K8S_NAMESPACE);
             let service_client = Client::try_default().compat().await.unwrap();
-            let services: Api<Service> = Api::namespaced(service_client, K8S_NAMESPACE);
+            let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
 
             let distributed_functions = self.fn_names_to_services.keys();
             for function in distributed_functions {
