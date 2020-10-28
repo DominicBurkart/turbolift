@@ -5,6 +5,8 @@ set -e
 
 # shellcheck disable=SC2139
 alias kind="$PWD/kind"
+# shellcheck disable=SC2139
+alias kubectl="$PWD/kubectl"
 
 cd turbolift/examples/kubernetes_example
 

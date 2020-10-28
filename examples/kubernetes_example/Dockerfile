@@ -9,5 +9,7 @@ RUN  apt-get update \
   && rm -rf /var/lib/apt/lists/*
 RUN wget -O ./kind --show-progress "https://kind.sigs.k8s.io/dl/v0.9.0/kind-$(uname)-amd64"
 RUN chmod +x ./kind
+RUN wget -O ./kubectl --show-progress "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+RUN chmod +x ./kubectl
 COPY ./ turbolift
 CMD sh turbolift/examples/kubernetes_example/example_runtime.sh
