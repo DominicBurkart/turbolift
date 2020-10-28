@@ -4,8 +4,7 @@
 # set up kind (k8s in docker)
 FROM rustlang/rust:nightly
 RUN  apt-get update \
-  && apt-get install -y wget \
-  && apt-get install -y docker.io \
+  && apt-get install -y wget docker.io \
   && rm -rf /var/lib/apt/lists/*
 RUN wget -O ./kubectl --show-progress "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
 RUN chmod +x ./kubectl
