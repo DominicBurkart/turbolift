@@ -16,7 +16,7 @@ RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo +nightly run
 
 # setup cluster (will be used in all tests & runs)
 kind create cluster --wait 20m
-kubectl cluster-info --context kind-kind
+kubectl cluster-info --context kind-kind || echo context setting failed && kubectl cluster-info dump
 kubectl get ns
 
 # run non-distributed tests again with cluster in environment
