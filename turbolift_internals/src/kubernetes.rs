@@ -80,6 +80,14 @@ fn function_to_deployment_name(function_name: &str) -> String {
     function_name.to_string().replace("_", "-") + "-deployment"
 }
 
+fn function_to_app_name(function_name: &str) -> String {
+    function_name.to_string().replace("_", "-")
+}
+
+fn function_to_container_name(function_name: &str) -> String {
+    function_name.to_string().replace("_", "-") + "-container"
+}
+
 #[async_trait]
 impl DistributionPlatform for K8s {
     async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
@@ -100,7 +108,8 @@ impl DistributionPlatform for K8s {
         let deployment_name = function_to_deployment_name(function_name);
         let service_name = function_to_service_name(function_name);
         println!("got service_name");
-        let app_name = function_name.to_string().replace("_", "-");
+        let app_name = function_to_app_name(function_name);
+        let container_name = function_to_container_name(function_name);
         println!("... app_name is fine...");
         let deployment_json = serde_json::json!({
             "apiVersion": "apps/v1",
@@ -127,7 +136,7 @@ impl DistributionPlatform for K8s {
                     "spec": {
                         "containers": [
                             {
-                                "name": tag_in_reg,
+                                "name": container_name,
                                 "image": image_url,
                                 "ports": [
                                     {
