@@ -1,0 +1,36 @@
+name: examples
+
+on:
+  push:
+    branches: master
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  local_queue_example:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: build local queue example
+        run: docker build -f examples/local_queue_example/Dockerfile .
+
+  kubernetes_example:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: './turbolift'
+      - name: install rustup and rust nightly
+        run: |
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            rustup toolchain install nightly
+      - name: run non-distributed example without cluster env
+        run: |
+            cd turbolift/examples/kubernetes_example
+            sh run_non_distributed_tests.sh
+      - uses: engineerd/setup-kind@v0.4.0
+      - name: run distributed and non-distributed examples
+        run: |
+          cd turbolift/examples/kubernetes_example
+          sh run_non_distributed_tests.sh
+          sh run_distributed_tests.sh
