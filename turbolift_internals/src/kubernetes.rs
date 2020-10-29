@@ -166,6 +166,7 @@ impl DistributionPlatform for K8s {
                 "name": service_name
             },
             "spec": {
+                "type": "NodePort",
                 "selector": {
                     "app": deployment_name
                 },
@@ -184,12 +185,16 @@ impl DistributionPlatform for K8s {
             .await?;
         println!("created service");
         let service_ip = format!(
-            "http://{}:5000",
+            "http://localhost:{}",
             service
                 .spec
                 .expect("no specification found for service")
-                .cluster_ip
-                .expect("no cluster ip found for service")
+                .ports
+                .expect("no ports found for service")
+                .iter()
+                .filter_map(|port| port.node_port)
+                .next()
+                .expect("no node port assigned to service")
         );
         println!("service_ip {}", service_ip);
 
