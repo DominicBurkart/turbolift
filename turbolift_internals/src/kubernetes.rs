@@ -171,7 +171,6 @@ impl DistributionPlatform for K8s {
                 },
                 "ports": [
                     {
-                        "protocol": "HTTP",
                         "port": 5000,
                         "targetPort": 5000
                     }
