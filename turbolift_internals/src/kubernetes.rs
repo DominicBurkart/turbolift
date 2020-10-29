@@ -169,11 +169,13 @@ impl DistributionPlatform for K8s {
                 "selector": {
                     "app": deployment_name
                 },
-                "ports": {
-                    "protocol": "HTTP",
-                    "port": 5000,
-                    "targetPort": 5000
-                }
+                "ports": [
+                    {
+                        "protocol": "HTTP",
+                        "port": 5000,
+                        "targetPort": 5000
+                    }
+                ]
             }
         }))?;
         println!("made service");
