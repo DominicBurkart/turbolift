@@ -73,11 +73,11 @@ impl std::fmt::Display for AutoscaleError {
 }
 
 fn function_to_service_name(function_name: &str) -> String {
-    function_name.to_string() + "-service"
+    function_name.to_string().replace("_", "-") + "-service"
 }
 
 fn function_to_deployment_name(function_name: &str) -> String {
-    function_name.to_string() + "-deployment"
+    function_name.to_string().replace("_", "-") + "-deployment"
 }
 
 #[async_trait]
@@ -100,7 +100,7 @@ impl DistributionPlatform for K8s {
         let deployment_name = function_to_deployment_name(function_name);
         let service_name = function_to_service_name(function_name);
         println!("got service_name");
-        let app_name = function_name.to_string();
+        let app_name = function_name.to_string().replace("_", "-");
         println!("... app_name is fine...");
         let deployment_json = serde_json::json!({
             "apiVersion": "apps/v1",
