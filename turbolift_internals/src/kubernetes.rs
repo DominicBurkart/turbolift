@@ -175,6 +175,9 @@ impl DistributionPlatform for K8s {
                         "port": 5000,
                         "targetPort": 5000
                     }
+                ],
+                "externalIPs": [
+                    "127.0.0.1"
                 ]
             }
         }))?;
@@ -185,7 +188,7 @@ impl DistributionPlatform for K8s {
             .await?;
         println!("created service");
         let service_ip = format!(
-            "http://localhost:{}",
+            "http://127.0.0.1:{}",
             service
                 .spec
                 .expect("no specification found for service")
