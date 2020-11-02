@@ -9,13 +9,13 @@ set -e
 . ./run_non_distributed_tests.sh
 
 # generate cluster
-kind create cluster
+. ./setup_kind.sh || kind delete
 
 # re-run non-distributed tests
-. ./run_non_distributed_tests.sh || kind delete cluster
+. ./run_non_distributed_tests.sh || kind delete
 
 # run distributed tests
-. ./run_distributed_tests.sh || kind delete cluster
+. ./run_distributed_tests.sh || kind delete
 
 # delete cluster
-kind delete cluster
+kind delete

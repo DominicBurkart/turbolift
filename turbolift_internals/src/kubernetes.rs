@@ -15,9 +15,9 @@ use url::Url;
 use crate::distributed_platform::{
     ArgsString, DistributionPlatform, DistributionResult, JsonResponse,
 };
-use crate::utils::get_open_socket;
 
 const TURBOLIFT_K8S_NAMESPACE: &str = "default";
+const LOCAL_REGISTRY_URL: &str = "http://localhost:5000";
 type ImageTag = String;
 
 /// `K8s` is the interface for turning rust functions into autoscaling microservices
@@ -99,11 +99,10 @@ impl DistributionPlatform for K8s {
         let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
 
         // generate image & host it on a local registry
-        let registry_url = setup_registry(function_name, project_tar)?;
+        let registry_url = Url::parse(LOCAL_REGISTRY_URL)?;
         let tag_in_reg = make_image(function_name, project_tar, &registry_url)?;
         let image_url = registry_url.join(&tag_in_reg)?.as_str().to_string();
 
-        // make deployment
         println!("wooo");
         let deployment_name = function_to_deployment_name(function_name);
         let service_name = function_to_service_name(function_name);
@@ -111,6 +110,8 @@ impl DistributionPlatform for K8s {
         let app_name = function_to_app_name(function_name);
         let container_name = function_to_container_name(function_name);
         println!("... app_name is fine...");
+
+        // make deployment
         let deployment_json = serde_json::json!({
             "apiVersion": "apps/v1",
             "kind": "Deployment",
@@ -172,12 +173,9 @@ impl DistributionPlatform for K8s {
                 },
                 "ports": [
                     {
-                        "port": 5000,
-                        "targetPort": 5000
+                        "protocol": "TCP",
+                        "port": 5000
                     }
-                ],
-                "externalIPs": [
-                    "127.0.0.1"
                 ]
             }
         }))?;
@@ -187,18 +185,16 @@ impl DistributionPlatform for K8s {
             .compat()
             .await?;
         println!("created service");
-        let service_ip = format!(
-            "http://127.0.0.1:{}",
-            service
-                .spec
-                .expect("no specification found for service")
-                .ports
-                .expect("no ports found for service")
-                .iter()
-                .filter_map(|port| port.node_port)
-                .next()
-                .expect("no node port assigned to service")
-        );
+        let node_port = service
+            .spec
+            .expect("no specification found for service")
+            .ports
+            .expect("no ports found for service")
+            .iter()
+            .filter_map(|port| port.node_port)
+            .next()
+            .expect("no node port assigned to service");
+        let service_ip = format!("http://localhost:{}", node_port);
         println!("service_ip {}", service_ip);
 
         // todo make sure that the pod and service were correctly started before returning
@@ -255,59 +251,6 @@ lazy_static! {
     static ref PORT_RE: Regex = Regex::new(r"0\.0\.0\.0:(\d+)->").unwrap();
 }
 
-fn setup_registry(_function_name: &str, _project_tar: &[u8]) -> anyhow::Result<Url> {
-    // check if registry is already running locally
-    let ps_output = Command::new("docker")
-        .args("ps -f name=turbolift-registry".split(' '))
-        .output()?;
-    if !ps_output.status.success() {
-        return Err(anyhow::anyhow!(
-            "docker ps failed. Is the docker daemon running?"
-        ));
-    }
-    let utf8 = String::from_utf8(ps_output.stdout)?;
-    let num_lines = utf8.as_str().lines().count();
-    let port = if num_lines == 1 {
-        // registry not running. Start the registry.
-        let port = get_open_socket()?.local_addr()?.port().to_string(); // todo hack
-        let args_str = format!(
-            "run -d -p {}:5000 --restart=always --name turbolift-registry registry:2",
-            port
-        );
-        let status = Command::new("docker")
-            .args(args_str.as_str().split(' '))
-            .status()?;
-        if !status.success() {
-            return Err(anyhow::anyhow!("registry setup failed"));
-        }
-        port
-    } else {
-        // turbolift-registry is running. Return for already-running registry.
-        PORT_RE
-            .captures(&utf8)
-            .unwrap()
-            .get(1)
-            .unwrap()
-            .as_str()
-            .to_string()
-    };
-
-    // return local ip + the registry port
-    let interfaces = get_if_addrs::get_if_addrs()?;
-    for interface in &interfaces {
-        if (interface.name == "en0") || (interface.name == "eth0") {
-            // todo support other network interfaces and figure out a better way to choose the interface
-            let ip = interface.addr.ip();
-            let ip_and_port = "http://".to_string() + &ip.to_string() + ":" + &port;
-            return Ok(Url::from_str(&ip_and_port)?);
-        }
-    }
-    Err(anyhow::anyhow!(
-        "no en0/eth0 interface found. interfaces: {:?}",
-        interfaces
-    ))
-}
-
 fn make_image(
     function_name: &str,
     project_tar: &[u8],
@@ -322,12 +265,17 @@ fn make_image(
     let tar_file_name = "source.tar";
     let tar_path = build_dir_canonical.join(tar_file_name);
     let docker_file = format!(
-        "FROM rustlang/rust:nightly
+        "FROM alpine:3
+RUN apk add curl libgcc gcc musl-dev make zlib-dev openssl-dev perl git
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+ENV PATH=/root/.cargo/bin:$PATH
+RUN rustup toolchain install nightly-2020-09-28
+RUN rustup default nightly-2020-09-28
 COPY {} {}
 RUN cat {} | tar xvf -
 WORKDIR {}
-RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build --release
-CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --release 127.0.0.1:5000",
+RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build
+CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run localhost:5000",
         tar_file_name, tar_file_name, tar_file_name, function_name
     );
     std::fs::write(&dockerfile_path, docker_file)?;
@@ -390,42 +338,42 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --release 127.0.0.1:500
 impl Drop for K8s {
     fn drop(&mut self) {
         // delete the associated services and deployments from the functions we distributed
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            let deployment_client = Client::try_default().compat().await.unwrap();
-            let deployments: Api<Deployment> =
-                Api::namespaced(deployment_client, TURBOLIFT_K8S_NAMESPACE);
-            let service_client = Client::try_default().compat().await.unwrap();
-            let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
-
-            let distributed_functions = self.fn_names_to_services.keys();
-            for function in distributed_functions {
-                let service = function_to_service_name(function);
-                services
-                    .delete(&service, &Default::default())
-                    .compat()
-                    .await
-                    .unwrap();
-                let deployment = function_to_deployment_name(function);
-                deployments
-                    .delete(&deployment, &Default::default())
-                    .compat()
-                    .await
-                    .unwrap();
-            }
-        });
-
-        // delete the local registry
-        let registry_deletion_status = Command::new("docker")
-            .arg("rmi")
-            .arg("$(docker images |grep 'turbolift-registry')")
-            .status()
-            .unwrap();
-        if !registry_deletion_status.success() {
-            eprintln!(
-                "could not delete turblift registry docker image. error code: {}",
-                registry_deletion_status.code().unwrap()
-            );
-        }
+        // let rt = tokio::runtime::Runtime::new().unwrap();
+        // rt.block_on(async {
+        //     let deployment_client = Client::try_default().compat().await.unwrap();
+        //     let deployments: Api<Deployment> =
+        //         Api::namespaced(deployment_client, TURBOLIFT_K8S_NAMESPACE);
+        //     let service_client = Client::try_default().compat().await.unwrap();
+        //     let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
+        //
+        //     let distributed_functions = self.fn_names_to_services.keys();
+        //     for function in distributed_functions {
+        //         let service = function_to_service_name(function);
+        //         services
+        //             .delete(&service, &Default::default())
+        //             .compat()
+        //             .await
+        //             .unwrap();
+        //         let deployment = function_to_deployment_name(function);
+        //         deployments
+        //             .delete(&deployment, &Default::default())
+        //             .compat()
+        //             .await
+        //             .unwrap();
+        //     }
+        // });
+        //
+        // // delete the local registry
+        // let registry_deletion_status = Command::new("docker")
+        //     .arg("rmi")
+        //     .arg("$(docker images |grep 'turbolift-registry')")
+        //     .status()
+        //     .unwrap();
+        // if !registry_deletion_status.success() {
+        //     eprintln!(
+        //         "could not delete turblift registry docker image. error code: {}",
+        //         registry_deletion_status.code().unwrap()
+        //     );
+        // }
     }
 }
