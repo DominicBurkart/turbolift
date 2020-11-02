@@ -22,15 +22,20 @@ jobs:
           path: './turbolift'
       - name: install rustup and rust nightly
         run: |
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-            rustup toolchain install nightly
-      - name: run non-distributed example without cluster env
+            curl --proto '=https' --tlsv1.2 -sSf gihttps://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+            rustup toolchain install nightly-2020-09-28
+            rustup default nightly-2020-09-28
+      - name: install kubectl
+        run: |
+            curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x ./kubectl
+            sudo mv ./kubectl /usr/local/bin/kubectl
+      - name: install kind
+        run: |
+            curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.9.0/kind-linux-amd64
+            chmod +x ./kind
+            PATH=$PATH:~/kind
+      - name: run tests
         run: |
             cd turbolift/examples/kubernetes_example
-            sh run_non_distributed_tests.sh
-      - uses: engineerd/setup-kind@v0.4.0
-      - name: run distributed and non-distributed examples
-        run: |
-          cd turbolift/examples/kubernetes_example
-          sh run_non_distributed_tests.sh
-          sh run_distributed_tests.sh
+            sh run_tests.sh

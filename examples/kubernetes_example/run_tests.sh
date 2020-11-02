@@ -15,7 +15,7 @@ set -e
 . ./run_non_distributed_tests.sh || kind delete
 
 # run distributed tests
-. ./run_distributed_tests.sh || kind delete
+. ./run_distributed_tests.sh || kubectl get pods
 
 # delete cluster
 kind delete
