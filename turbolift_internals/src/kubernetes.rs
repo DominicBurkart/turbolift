@@ -267,10 +267,8 @@ fn make_image(
     let docker_file = format!(
         "FROM ubuntu:latest
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2020-09-28
 ENV PATH=/root/.cargo/bin:$PATH
-RUN rustup toolchain install nightly-2020-09-28
-RUN rustup default nightly-2020-09-28
 COPY {} {}
 RUN cat {} | tar xvf -
 WORKDIR {}
