@@ -266,7 +266,7 @@ fn make_image(
     let tar_path = build_dir_canonical.join(tar_file_name);
     let docker_file = format!(
         "FROM ubuntu:latest
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y curl gcc libssl-dev pkg-config && rm -rf /var/lib/apt/lists/*
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2020-09-28
 ENV PATH=/root/.cargo/bin:$PATH
 COPY {} {}
