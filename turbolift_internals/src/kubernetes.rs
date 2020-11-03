@@ -17,7 +17,7 @@ use crate::distributed_platform::{
 };
 
 const TURBOLIFT_K8S_NAMESPACE: &str = "default";
-const LOCAL_REGISTRY_URL: &str = "http://localhost:5000";
+const LOCAL_REGISTRY_URL: &str = "http://localhost:32000";
 type ImageTag = String;
 
 /// `K8s` is the interface for turning rust functions into autoscaling microservices
