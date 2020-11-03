@@ -265,8 +265,8 @@ fn make_image(
     let tar_file_name = "source.tar";
     let tar_path = build_dir_canonical.join(tar_file_name);
     let docker_file = format!(
-        "FROM alpine:3
-RUN apk add curl libgcc gcc musl-dev make zlib-dev openssl-dev perl git
+        "FROM ubuntu:latest
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 ENV PATH=/root/.cargo/bin:$PATH
 RUN rustup toolchain install nightly-2020-09-28
