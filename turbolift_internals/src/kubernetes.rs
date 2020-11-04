@@ -266,14 +266,27 @@ fn make_image(
     let tar_path = build_dir_canonical.join(tar_file_name);
     let docker_file = format!(
         "FROM ubuntu:latest
+# set timezone (otherwise tzinfo stops dep installation with prompt for time zone)
 ENV TZ=Etc/UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# install curl and rust deps
 RUN apt-get update && apt-get install -y curl gcc libssl-dev pkg-config && rm -rf /var/lib/apt/lists/*
+
+# install rustup
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2020-09-28
 ENV PATH=/root/.cargo/bin:$PATH
+
+# copy tar file
 COPY {} {}
+
+# unpack tar
 RUN cat {} | tar xvf -
+
+# enter into unpacked source directory
 WORKDIR {}
+
+# build and run release
 RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build
 CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run localhost:5000",
         tar_file_name, tar_file_name, tar_file_name, function_name
