@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
 
-use crate::utils::symlink_dir;
+use crate::utils::{symlink_dir, RELEASE_FLAG};
 
 pub fn edit_cargo_file(
     original_project_source_dir: &Path,
@@ -105,7 +105,7 @@ pub fn lint(proj_path: &Path) -> anyhow::Result<()> {
 pub fn make_executable(proj_path: &Path, dest: Option<&Path>) -> anyhow::Result<()> {
     let status = Command::new("cargo")
         .current_dir(proj_path)
-        .args("build --release".split(' '))
+        .args(format!("build {}", RELEASE_FLAG).as_str().trim().split(' '))
         .status()?;
 
     if !status.success() {

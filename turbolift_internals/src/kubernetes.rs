@@ -15,6 +15,7 @@ use url::Url;
 use crate::distributed_platform::{
     ArgsString, DistributionPlatform, DistributionResult, JsonResponse,
 };
+use crate::utils::RELEASE_FLAG;
 
 const TURBOLIFT_K8S_NAMESPACE: &str = "default";
 const LOCAL_REGISTRY_URL: &str = "http://localhost:32000";
@@ -287,9 +288,14 @@ RUN cat {} | tar xvf -
 WORKDIR {}
 
 # build and run release
-RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build
-CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run localhost:5000",
-        tar_file_name, tar_file_name, tar_file_name, function_name
+RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build {}
+CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run {} localhost:5000",
+        tar_file_name,
+        tar_file_name,
+        tar_file_name,
+        function_name,
+        RELEASE_FLAG,
+        RELEASE_FLAG
     );
     std::fs::write(&dockerfile_path, docker_file)?;
     std::fs::write(&tar_path, project_tar)?;
