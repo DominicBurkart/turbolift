@@ -20,21 +20,17 @@ jobs:
       - uses: actions/checkout@v2
         with:
           path: './turbolift'
+      - uses: dominicburkart/microk8s-actions@1629a09e791146e6be04134768ed6ac2dc60dc83
+        with:
+          channel: '1.19/stable'
+          rbac: 'true'
+          dns: 'true'
+          storage: 'true'
       - name: install rustup and rust nightly
         run: |
-            curl --proto '=https' --tlsv1.2 -sSf gihttps://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
             rustup toolchain install nightly-2020-09-28
             rustup default nightly-2020-09-28
-      - name: install kubectl
-        run: |
-            curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
-            chmod +x ./kubectl
-            sudo mv ./kubectl /usr/local/bin/kubectl
-      - name: install kind
-        run: |
-            curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.9.0/kind-linux-amd64
-            chmod +x ./kind
-            PATH=$PATH:~/kind
       - name: run tests
         run: |
             cd turbolift/examples/kubernetes_example

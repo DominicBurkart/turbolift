@@ -14,7 +14,6 @@ microk8s stop
 
 # start cluster
 microk8s start
-microk8s status --wait-ready
 
 # re-run non-distributed tests
 . ./run_non_distributed_tests.sh

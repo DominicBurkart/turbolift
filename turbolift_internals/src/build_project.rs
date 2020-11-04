@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
 
-use crate::utils::{symlink_dir, RELEASE_FLAG};
+use crate::utils::{symlink_dir, IS_RELEASE, RELEASE_FLAG};
 
 pub fn edit_cargo_file(
     original_project_source_dir: &Path,
@@ -119,7 +119,11 @@ pub fn make_executable(proj_path: &Path, dest: Option<&Path>) -> anyhow::Result<
             let cargo_path = proj_path.join("Cargo.toml");
             let parsed_toml: cargo_toml2::CargoToml = cargo_toml2::from_path(cargo_path)?;
             let project_name = parsed_toml.package.name;
-            let local_path = "target/release/".to_string() + &project_name;
+            let local_path = if IS_RELEASE {
+                "target/release/".to_string() + &project_name
+            } else {
+                "target/debug/".to_string() + &project_name
+            };
             proj_path.canonicalize().unwrap().join(&local_path)
         };
         fs::rename(&executable_path, destination)?;
