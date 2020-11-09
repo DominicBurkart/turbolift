@@ -20,13 +20,12 @@ Turbolift allows developers to turn normal rust functions into distributed servi
 but benefit from the scalability of microservice architectures.
 
 ## Orchestration with a feature flag.
-For quicker development builds, `cargo build` doesn't build the distributed version of your code. 
-Instead, the functions tagged for distribution will have identical signatures to the production version, 
-but will run locally when you `.await` them. Same as we use `--release` for better optimization, 
-we use `--features "distributed"` to build the relevant orchestration: `cargo build --release --features "distributed"`.
+For quicker development builds, `cargo build` doesn't build the distributed version of your code by default.
+Distribution is feature-gated so that it's easy to turn on (for example, in production), or off (for example, 
+while developing locally).
 
 ## Important implementation notes
-- implemented over http using `surf` and `actix-web` (no current plans to refactor to use a lower level network protocol).
+- implemented over http using `reqwest` and `actix-web` (no current plans to refactor to use a lower level network protocol).
 - assumes a secure network– function parameters are sent in plaintext to the microservice.
 - source vulnerability: when building, anything in the project directory or in local dependencies 
 declared in the project manifest could be bundled and sent over the network to workers. 
