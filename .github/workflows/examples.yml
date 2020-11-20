@@ -28,9 +28,7 @@ jobs:
           storage: 'true'
       - name: install rustup and rust nightly
         run: |
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
-            rustup toolchain install nightly-2020-09-28
-            rustup default nightly-2020-09-28
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2020-09-28
       - name: run tests
         run: |
             cd turbolift/examples/kubernetes_example
