@@ -19,7 +19,7 @@ use crate::CACHE_PATH;
 type AddressAndPort = Url;
 type FunctionName = String;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct LocalQueue {
     fn_name_to_address: HashMap<FunctionName, AddressAndPort>, // todo hardcoded rn
     fn_name_to_process: HashMap<FunctionName, Child>,
@@ -36,6 +36,7 @@ impl LocalQueue {
 #[async_trait]
 impl DistributionPlatform for LocalQueue {
     /// declare a function. Runs once.
+    #[tracing::instrument]
     async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
         let relative_build_dir = Path::new(".")
             .join(".turbolift")
@@ -53,6 +54,7 @@ impl DistributionPlatform for LocalQueue {
     }
 
     // dispatch params to a function. Runs each time the function is called.
+    #[tracing::instrument]
     async fn dispatch(
         &mut self,
         function_name: &str,
@@ -71,13 +73,13 @@ impl DistributionPlatform for LocalQueue {
                 let server_url: AddressAndPort =
                     Url::parse(&("http://".to_string() + server_address_and_port_str))?;
                 let executable = self.fn_name_to_binary_path.get(function_name).unwrap();
-                println!("spawning");
+                tracing::info!("spawning");
                 let server_handle = Command::new(executable)
                     .arg(&server_address_and_port_str)
                     .spawn()?;
-                println!("delaying");
+                tracing::info!("delaying");
                 tokio::time::sleep(Duration::from_secs(60)).await;
-                println!("delay completed");
+                tracing::info!("delay completed");
                 // ^ sleep to make sure the server is initialized before continuing
                 self.fn_name_to_address
                     .insert(function_name.to_string(), server_url.clone());
@@ -91,7 +93,7 @@ impl DistributionPlatform for LocalQueue {
         let prefixed_params = "./".to_string() + function_name + "/" + &params;
         let query_url = address_and_port.join(&prefixed_params)?;
 
-        println!("sending dispatch request to {:?}", query_url);
+        tracing::info!("sending dispatch request");
         let resp = Ok(self
             .request_client
             .get(query_url)
@@ -101,10 +103,11 @@ impl DistributionPlatform for LocalQueue {
             .text()
             .compat()
             .await?);
-        println!("dispatch returning: {:?}", resp);
+        tracing::info!("received response");
         resp
     }
 
+    #[tracing::instrument]
     fn has_declared(&self, fn_name: &str) -> bool {
         self.fn_name_to_binary_path.contains_key(fn_name)
     }
@@ -112,6 +115,7 @@ impl DistributionPlatform for LocalQueue {
 
 impl Drop for LocalQueue {
     /// terminate all servers when program is finished
+    #[tracing::instrument]
     fn drop(&mut self) {
         self.fn_name_to_process
             .drain()

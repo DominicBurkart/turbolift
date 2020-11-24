@@ -6,6 +6,7 @@ use turbolift_internals::extract_function;
 
 #[cfg(feature = "distributed")]
 #[proc_macro_attribute]
+#[tracing::instrument]
 pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenStream {
     use quote::{format_ident, ToTokens};
     use std::fs;
@@ -55,6 +56,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         #target_function
 
         #[get(#wrapper_route)]
+        #[turbolift::tracing::instrument]
         async fn turbolift_wrapper(web::Path((#untyped_params_tokens)): web::Path<(#param_types)>) -> Result<HttpResponse> {
             Ok(
                 HttpResponse::Ok()
@@ -63,11 +65,13 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         }
 
         #[actix_web::main]
+        #[turbolift::tracing::instrument]
         async fn main() -> std::io::Result<()> {
             use actix_web::{App, HttpServer};
 
             let args: Vec<String> = std::env::args().collect();
             let ip_and_port = &args[1];
+            turbolift::tracing::info!("service main() started. ip_and_port parsed.");
             HttpServer::new(
                 ||
                     App::new()
@@ -123,7 +127,10 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
     // lint project
     if let Err(e) = build_project::lint(&function_cache_proj_path) {
-        eprintln!("ignoring linting error: {:?}", e)
+        tracing::error!(
+            error = e.as_ref() as &(dyn std::error::Error + 'static),
+            "ignoring linting error"
+        );
     }
 
     // check project and give errors
@@ -139,7 +146,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     // ^ todo
 
     // compress project source files
-    println!("on: build complete");
+    tracing::info!("build complete");
     let project_source_binary = {
         let tar = extract_function::make_compressed_proj_src(&function_cache_proj_path);
         let tar_file = CACHE_PATH.join(original_target_function_name.clone() + "_source.tar");
@@ -154,13 +161,14 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         ))
         .expect("syntax error while embedding project tar.")
     };
-    println!("on: project_source_binary complete");
+    tracing::info!("project_source_binary complete");
 
     // generate API function for the microservice
     let declare_and_dispatch = q! {
         extern crate turbolift;
 
         // dispatch call and process response
+        #[turbolift::tracing::instrument]
         async fn #original_target_function_ident(#typed_params) ->
             turbolift::DistributionResult<#result_type> {
             use std::time::Duration;
@@ -168,24 +176,24 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             use turbolift::DistributionResult;
             use turbolift::tokio_compat_02::FutureExt;
 
-            println!("in original target function");
+            turbolift::tracing::info!("in original target function");
 
             let mut platform = #distribution_platform.lock().await;
 
-            println!("platform generated");
+            turbolift::tracing::info!("platform generated");
 
             if !platform.has_declared(#original_target_function_name) {
-                println!("launching declare");
+                turbolift::tracing::info!("launching declare");
                 platform
                     .declare(#original_target_function_name, #project_source_binary)
                     .compat()
                     .await?;
-                println!("declare completed");
+                turbolift::tracing::info!("declare completed");
             }
 
             let params = #params_vec.join("/");
 
-            println!("launching dispatch");
+            turbolift::tracing::info!("launching dispatch");
             let resp_string = platform
                 .dispatch(
                     #original_target_function_name,
@@ -193,7 +201,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                 )
                 .compat()
                 .await?;
-            println!("dispatch completed");
+            turbolift::tracing::info!("dispatch completed");
             Ok(turbolift::serde_json::from_str(&resp_string)?)
         }
     };
@@ -218,6 +226,7 @@ pub fn on(_distribution_platform: TokenStream, function_: TokenStream) -> TokenS
     let async_function = q! {
         extern crate turbolift;
 
+        #[turbolift::tracing::instrument]
         async fn #original_target_function_ident(#typed_params) -> turbolift::DistributionResult<#output_type> {
             #wrapped_original_function
             Ok(wrapped_function(#untyped_params))

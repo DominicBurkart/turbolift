@@ -14,3 +14,8 @@ lazy_static = "1"
 futures = "0.3"
 cute = "0.3"
 turbolift = { path="../../" }
+
+# for printing out tracing
+tracing = "0.1"
+tracing-futures = "0.2"
+tracing-subscriber = {version="0.2", features=["fmt"]}

@@ -5,6 +5,8 @@ extern crate cute;
 use futures::future::try_join_all;
 use rand::{thread_rng, Rng};
 use tokio::sync::Mutex;
+use tracing;
+use tracing_subscriber;
 
 use turbolift::kubernetes::K8s;
 use turbolift::on;
@@ -24,11 +26,20 @@ fn random_numbers() -> Vec<u64> {
 }
 
 fn main() {
+    // use tracing.rs to print info about the program to stdout
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .with_writer(std::io::stdout)
+        .init();
+
     let input = random_numbers();
     let futures = c![square(*int), for int in &input];
     let mut rt = tokio::runtime::Runtime::new().unwrap();
     let output = rt.block_on(try_join_all(futures)).unwrap();
-    println!("input: {:?}\noutput: {:?}", input, output);
+    println!(
+        "\n\ncomputation complete.\ninput: {:?}\noutput: {:?}",
+        input, output
+    );
     if output != c![x*x, for x in input] {
         std::process::exit(1)
     }

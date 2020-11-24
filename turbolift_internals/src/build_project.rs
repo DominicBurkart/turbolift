@@ -6,6 +6,7 @@ use std::str::FromStr;
 
 use crate::utils::{symlink_dir, IS_RELEASE, RELEASE_FLAG};
 
+#[tracing::instrument]
 pub fn edit_cargo_file(
     original_project_source_dir: &Path,
     cargo_path: &Path,
@@ -82,6 +83,7 @@ pub fn edit_cargo_file(
     Ok(())
 }
 
+#[tracing::instrument]
 pub fn lint(proj_path: &Path) -> anyhow::Result<()> {
     let install_status = Command::new("rustup")
         .args("component add rustfmt".split(' '))
@@ -102,6 +104,7 @@ pub fn lint(proj_path: &Path) -> anyhow::Result<()> {
     Ok(())
 }
 
+#[tracing::instrument]
 pub fn make_executable(proj_path: &Path, dest: Option<&Path>) -> anyhow::Result<()> {
     let status = Command::new("cargo")
         .current_dir(proj_path)
@@ -131,6 +134,7 @@ pub fn make_executable(proj_path: &Path, dest: Option<&Path>) -> anyhow::Result<
     Ok(())
 }
 
+#[tracing::instrument]
 pub fn check(proj_path: &Path) -> anyhow::Result<()> {
     let status = Command::new("cargo")
         .current_dir(proj_path)

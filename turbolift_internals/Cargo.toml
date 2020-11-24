@@ -31,6 +31,8 @@ cached = "0.19"
 async-trait = "0.1"
 get_if_addrs = "0.5.3"
 regex = "1"
+tracing = {version="0.1", features=["attributes"]}
+tracing-futures = "0.2.4"
 
 # kubernetes-specific requirements
 kube = "0.43.0"

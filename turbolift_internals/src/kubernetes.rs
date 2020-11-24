@@ -8,7 +8,6 @@ use k8s_openapi::api::core::v1::Service;
 use kube::api::{Api, PostParams};
 use kube::Client;
 use regex::Regex;
-use syn::export::Formatter;
 use tokio_compat_02::FutureExt;
 use url::Url;
 
@@ -26,6 +25,7 @@ type ImageTag = String;
 /// device at runtime.
 ///
 /// Access to the kubernetes cluster must be inferrable from the env variables at runtime.
+#[derive(Debug)]
 pub struct K8s {
     max_scale_n: u32,
     fn_names_to_services: HashMap<String, Url>,
@@ -34,6 +34,7 @@ pub struct K8s {
 
 impl K8s {
     /// returns a K8s object that does not perform autoscaling.
+    #[tracing::instrument]
     pub fn new() -> K8s {
         K8s::with_max_replicas(1)
     }
@@ -42,6 +43,7 @@ impl K8s {
     /// is not enabled. Otherwise, autoscale is automatically activated
     /// with cluster defaults and a max number of replicas *per distributed
     /// function* of `max`. Panics if `max` < 1.
+    #[tracing::instrument]
     pub fn with_max_replicas(max: u32) -> K8s {
         if max < 1 {
             panic!("max < 1 while instantiating k8s (value: {})", max)
@@ -57,19 +59,6 @@ impl K8s {
 impl Default for K8s {
     fn default() -> Self {
         K8s::new()
-    }
-}
-
-pub struct AutoscaleError {}
-impl std::error::Error for AutoscaleError {}
-impl std::fmt::Debug for AutoscaleError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "error while applying autoscale")
-    }
-}
-impl std::fmt::Display for AutoscaleError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "error while applying autoscale")
     }
 }
 
@@ -104,13 +93,13 @@ impl DistributionPlatform for K8s {
         let tag_in_reg = make_image(function_name, project_tar, &registry_url)?;
         let image_url = registry_url.join(&tag_in_reg)?.as_str().to_string();
 
-        println!("wooo");
+        tracing::info!("image made. making deployment and service names.");
         let deployment_name = function_to_deployment_name(function_name);
         let service_name = function_to_service_name(function_name);
-        println!("got service_name");
+        tracing::info!("made service_name");
         let app_name = function_to_app_name(function_name);
         let container_name = function_to_container_name(function_name);
-        println!("... app_name is fine...");
+        tracing::info!("made app_name and container_name");
 
         // make deployment
         let deployment_json = serde_json::json!({
@@ -151,14 +140,14 @@ impl DistributionPlatform for K8s {
                 }
             }
         });
-        println!("deployment_json generated, {:?}", deployment_json);
+        tracing::info!("deployment_json generated");
         let deployment = serde_json::from_value(deployment_json)?;
-        println!("made deployment: {:?}", deployment);
+        tracing::info!("deployment generated");
         deployments
             .create(&PostParams::default(), &deployment)
             .compat()
             .await?;
-        println!("created deployment");
+        tracing::info!("created deployment");
 
         // make service pointing to deployment
         let service = serde_json::from_value(serde_json::json!({
@@ -180,12 +169,12 @@ impl DistributionPlatform for K8s {
                 ]
             }
         }))?;
-        println!("made service");
+        tracing::info!("made service");
         let service = services
             .create(&PostParams::default(), &service)
             .compat()
             .await?;
-        println!("created service");
+        tracing::info!("created service");
         let node_port = service
             .spec
             .expect("no specification found for service")
@@ -195,8 +184,8 @@ impl DistributionPlatform for K8s {
             .filter_map(|port| port.node_port)
             .next()
             .expect("no node port assigned to service");
-        let service_ip = format!("http://localhost:{}", node_port);
-        println!("service_ip {}", service_ip);
+        let service_ip = format!("http://127.0.0.1:{}", node_port);
+        tracing::info!("generated service_ip");
 
         // todo make sure that the pod and service were correctly started before returning
 
@@ -209,8 +198,13 @@ impl DistributionPlatform for K8s {
             let scale_status = Command::new("kubectl")
                 .args(scale_args.as_str().split(' '))
                 .status()?;
+
             if !scale_status.success() {
-                return Err(Box::new(AutoscaleError {}));
+                return Err(anyhow::anyhow!(
+                    "autoscale error: error code: {:?}",
+                    scale_status.code()
+                )
+                .into());
                 // ^ todo attach error context from child
             }
         }
@@ -229,8 +223,8 @@ impl DistributionPlatform for K8s {
         let service_base_url = self.fn_names_to_services.get(function_name).unwrap();
         let args = "./".to_string() + function_name + "/" + &params;
         let query_url = service_base_url.join(&args)?;
-        println!("sending dispatch request to {:?}", query_url);
-        let resp = Ok(self
+        tracing::info!("sending dispatch request");
+        Ok(self
             .request_client
             .get(query_url)
             .send()
@@ -238,11 +232,10 @@ impl DistributionPlatform for K8s {
             .await?
             .text()
             .compat()
-            .await?);
-        println!("dispatch returning: {:?}", resp);
-        resp
+            .await?)
     }
 
+    #[tracing::instrument]
     fn has_declared(&self, fn_name: &str) -> bool {
         self.fn_names_to_services.contains_key(fn_name)
     }
@@ -252,12 +245,13 @@ lazy_static! {
     static ref PORT_RE: Regex = Regex::new(r"0\.0\.0\.0:(\d+)->").unwrap();
 }
 
+#[tracing::instrument]
 fn make_image(
     function_name: &str,
     project_tar: &[u8],
     registry_url: &Url,
 ) -> anyhow::Result<ImageTag> {
-    println!("making image");
+    tracing::info!("making image");
     // set up directory and dockerfile
     let build_dir = std::path::PathBuf::from(format!("{}_k8s_temp_dir", function_name));
     std::fs::create_dir_all(&build_dir)?;
@@ -322,7 +316,7 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run {} localhost:5000",
             function_name
         );
 
-        println!("image tag: {}", image_tag);
+        tracing::info!("made image tag");
 
         // tag image
         let tag_args = format!("image tag {} {}", function_name, image_tag);
@@ -333,28 +327,29 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run {} localhost:5000",
             return Err(anyhow::anyhow!("docker image tag failure"));
         }
 
-        println!("image tag worked: {}", tag_args);
+        tracing::info!("image tagged");
 
         // push image to local repo
         let push_status = Command::new("docker")
             .arg("push")
             .arg(image_tag.clone())
             .status()?;
-        println!("docker push command did not explode");
+        tracing::info!("docker push command did not explode");
         if !push_status.success() {
             return Err(anyhow::anyhow!("docker image push failure"));
         }
 
         Ok(image_tag)
     })();
-    println!("removing build dir");
+    tracing::info!("removing build dir");
     // always remove the build directory, even on build error
     std::fs::remove_dir_all(build_dir_canonical)?;
-    println!("returning res");
+    tracing::info!("returning result");
     result
 }
 
 impl Drop for K8s {
+    #[tracing::instrument]
     fn drop(&mut self) {
         // delete the associated services and deployments from the functions we distributed
         // let rt = tokio::runtime::Runtime::new().unwrap();

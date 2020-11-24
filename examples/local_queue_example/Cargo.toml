@@ -15,5 +15,7 @@ lazy_static = "1"
 tokio = {version="0.3", features=["full"]}
 turbolift = { path="../../" }
 
-# these are dependencies that need to be bundled into turbolift, but debugging how to reexport proc macros is hard.
-cached = "0.19"
+# for printing out tracing
+tracing = "0.1"
+tracing-futures = "0.2"
+tracing-subscriber = {version="0.2", features=["fmt"]}

@@ -6,10 +6,9 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use quote::ToTokens;
-use tar::{Archive, Builder};
-
 use syn::export::TokenStream2;
 use syn::spanned::Spanned;
+use tar::{Archive, Builder};
 
 use crate::distributed_platform::DistributionResult;
 use crate::CACHE_PATH;
@@ -18,6 +17,7 @@ type TypedParams = syn::punctuated::Punctuated<syn::FnArg, syn::Token![,]>;
 type UntypedParams = syn::punctuated::Punctuated<Box<syn::Pat>, syn::Token![,]>;
 type ParamTypes = syn::punctuated::Punctuated<Box<syn::Type>, syn::Token![,]>;
 
+#[tracing::instrument]
 pub fn get_fn_item(function: TokenStream) -> syn::ItemFn {
     match syn::parse2(function).unwrap() {
         syn::Item::Fn(fn_item) => fn_item,
@@ -28,6 +28,7 @@ pub fn get_fn_item(function: TokenStream) -> syn::ItemFn {
 /// wraps any calls to the target function from within its own service with the return type as
 /// if the call was made from outside the service. This is one way to allow compilation while
 /// references to the target function are in the service codebase.
+#[tracing::instrument]
 pub fn make_dummy_function(
     function: syn::ItemFn,
     redirect_fn_name: &str,
@@ -71,6 +72,7 @@ pub fn make_dummy_function(
     }
 }
 
+#[tracing::instrument]
 pub fn to_untyped_params(typed_params: TypedParams) -> UntypedParams {
     typed_params
         .into_iter()
@@ -80,7 +82,9 @@ pub fn to_untyped_params(typed_params: TypedParams) -> UntypedParams {
         })
         .collect()
 }
+
 /// params -> {param1}/{param2}/{param3}[...]
+#[tracing::instrument]
 pub fn to_path_params(untyped_params: UntypedParams) -> String {
     let open_bracket = "{";
     let close_bracket = "}".to_string();
@@ -92,6 +96,7 @@ pub fn to_path_params(untyped_params: UntypedParams) -> String {
     path_format.join("/")
 }
 
+#[tracing::instrument]
 pub fn to_param_types(typed_params: TypedParams) -> ParamTypes {
     typed_params
         .into_iter()
@@ -102,6 +107,7 @@ pub fn to_param_types(typed_params: TypedParams) -> ParamTypes {
         .collect()
 }
 
+#[tracing::instrument]
 pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream {
     let punc: Vec<String> = untyped_params
         .into_iter()
@@ -116,6 +122,7 @@ pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream {
     TokenStream::from_str(&vec_string).unwrap()
 }
 
+#[tracing::instrument]
 pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
     let span = function.span();
     let path = span.source_file().path();
@@ -150,12 +157,14 @@ pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
     TokenStream2::from_str(&sanitized_string).unwrap()
 }
 
+#[tracing::instrument]
 pub fn unpack_path_params(untyped_params: &UntypedParams) -> TokenStream {
     let n_params = untyped_params.len();
     let params: Vec<String> = (0..n_params).map(|i| format!("path.{}", i)).collect();
     TokenStream::from_str(&params.join(", ")).unwrap()
 }
 
+#[tracing::instrument]
 pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     let cursor = Cursor::new(Vec::new());
     let mut archive = Builder::new(cursor);
@@ -201,6 +210,7 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     archive.into_inner().unwrap().into_inner()
 }
 
+#[tracing::instrument]
 pub fn decompress_proj_src(src: &[u8], dest: &Path) -> DistributionResult<()> {
     let cursor = Cursor::new(src.to_owned());
     let mut archive = Archive::new(cursor);
@@ -208,6 +218,7 @@ pub fn decompress_proj_src(src: &[u8], dest: &Path) -> DistributionResult<()> {
 }
 
 /// assumes input is a function, not a closure.
+#[tracing::instrument]
 pub fn get_result_type(output: &syn::ReturnType) -> TokenStream2 {
     match output {
         syn::ReturnType::Default => TokenStream2::from_str("()").unwrap(),
