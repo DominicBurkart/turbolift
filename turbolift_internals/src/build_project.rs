@@ -108,7 +108,7 @@ pub fn lint(proj_path: &Path) -> anyhow::Result<()> {
 pub fn make_executable(proj_path: &Path, dest: Option<&Path>) -> anyhow::Result<()> {
     let status = Command::new("cargo")
         .current_dir(proj_path)
-        .args(format!("build {}", RELEASE_FLAG).as_str().trim().split(' '))
+        .args(format!("build{}", RELEASE_FLAG).as_str().trim().split(' '))
         .status()?;
 
     if !status.success() {

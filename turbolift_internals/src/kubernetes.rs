@@ -15,9 +15,10 @@ use crate::distributed_platform::{
     ArgsString, DistributionPlatform, DistributionResult, JsonResponse,
 };
 use crate::utils::RELEASE_FLAG;
+use crate::CACHE_PATH;
 
 const TURBOLIFT_K8S_NAMESPACE: &str = "default";
-const LOCAL_REGISTRY_URL: &str = "http://127.0.0.1:32000";
+const LOCAL_REGISTRY_URL: &str = "http://localhost:32000";
 type ImageTag = String;
 
 /// `K8s` is the interface for turning rust functions into autoscaling microservices
@@ -176,6 +177,17 @@ impl DistributionPlatform for K8s {
             .compat()
             .await?;
         tracing::info!("created service");
+        let node_ip = {
+            // let stdout = Command::new("kubectl")
+            // .args("get nodes --selector=kubernetes.io/role!=master -o jsonpath={.items[*].status.addresses[?\\(@.type==\\\"InternalIP\\\"\\)].address}".split(' '))
+            // .output()
+            // .expect("error finding node ip")
+            // .stdout;
+            // String::from_utf8(stdout).expect("could not parse local node ip")
+            "192.169.0.100".to_string()
+        };
+        tracing::info!(node_ip = node_ip.as_str(), "found node ip");
+
         let node_port = service
             .spec
             .expect("no specification found for service")
@@ -185,30 +197,31 @@ impl DistributionPlatform for K8s {
             .filter_map(|port| port.node_port)
             .next()
             .expect("no node port assigned to service");
-        let service_ip = format!("http://127.0.0.1:{}", node_port);
-        tracing::info!("generated service_ip");
+        let service_ip = format!("http://{}:{}", node_ip, node_port);
+        tracing::info!(ip = service_ip.as_str(), "generated service_ip");
 
         // todo make sure that the pod and service were correctly started before returning
 
-        if self.max_scale_n > 1 {
-            // set autoscale
-            let scale_args = format!(
-                "autoscale deployment {} --max={}",
-                deployment_name, self.max_scale_n
-            );
-            let scale_status = Command::new("kubectl")
-                .args(scale_args.as_str().split(' '))
-                .status()?;
+        // if self.max_scale_n > 1 {
+        //     // set autoscale
+        //     let scale_args = format!(
+        //         "autoscale deployment {} --max={}",
+        //         deployment_name, self.max_scale_n
+        //     );
+        //     let scale_status = Command::new("kubectl")
+        //         .args(scale_args.as_str().split(' '))
+        //         .status()?;
+        //
+        //     if !scale_status.success() {
+        //         return Err(anyhow::anyhow!(
+        //             "autoscale error: error code: {:?}",
+        //             scale_status.code()
+        //         )
+        //         .into());
+        //         // ^ todo attach error context from child
+        //     }
+        // }
 
-            if !scale_status.success() {
-                return Err(anyhow::anyhow!(
-                    "autoscale error: error code: {:?}",
-                    scale_status.code()
-                )
-                .into());
-                // ^ todo attach error context from child
-            }
-        }
         self.fn_names_to_services
             .insert(function_name.to_string(), Url::from_str(&service_ip)?);
         // todo handle deleting the relevant service and deployment for each distributed function.
@@ -225,7 +238,7 @@ impl DistributionPlatform for K8s {
         let service_base_url = self.fn_names_to_services.get(function_name).unwrap();
         let args = "./".to_string() + function_name + "/" + &params;
         let query_url = service_base_url.join(&args)?;
-        tracing::info!("sending dispatch request");
+        tracing::info!(url = query_url.as_str(), "sending dispatch request");
         Ok(self
             .request_client
             .get(query_url)
@@ -255,7 +268,7 @@ fn make_image(
 ) -> anyhow::Result<ImageTag> {
     tracing::info!("making image");
     // set up directory and dockerfile
-    let build_dir = std::path::PathBuf::from(format!("{}_k8s_temp_dir", function_name));
+    let build_dir = CACHE_PATH.join(format!("{}_k8s_temp_dir", function_name).as_str());
     std::fs::create_dir_all(&build_dir)?;
     let build_dir_canonical = build_dir.canonicalize()?;
     let dockerfile_path = build_dir_canonical.join("Dockerfile");
@@ -283,9 +296,11 @@ RUN cat {} | tar xvf -
 # enter into unpacked source directory
 WORKDIR {}
 
-# build and run release
-RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build {}
-CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run {} localhost:5000",
+# build and run project
+RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build{}
+RUN ls -latr .
+RUN ls -latr target/debug
+CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run{} localhost:5000",
         tar_file_name,
         tar_file_name,
         tar_file_name,

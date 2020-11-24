@@ -133,24 +133,29 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         );
     }
 
-    // check project and give errors
-    build_project::check(&function_cache_proj_path).expect("error checking function");
+    // // check project and give errors
+    // build_project::check(&function_cache_proj_path).expect("error checking function");
 
+    // println!("building microservice");
     // // build project so that the deps are packaged, and if the worker has the same architecture,
-    // // they can directly use the compiled version without having to recompile. todo commented
-    // // out because the build artifacts are too large.
-    // build_project::make_executable(
-    //     &function_cache_proj_path,
-    //     None
-    // ).expect("error building function");
-    // ^ todo
+    // // they can directly use the compiled version without having to recompile. todo the build artifacts are too large.
+    // build_project::make_executable(&function_cache_proj_path, None)
+    //     .expect("error building function");
+    // // ^ todo
 
     // compress project source files
-    tracing::info!("build complete");
     let project_source_binary = {
         let tar = extract_function::make_compressed_proj_src(&function_cache_proj_path);
         let tar_file = CACHE_PATH.join(original_target_function_name.clone() + "_source.tar");
         fs::write(&tar_file, tar).expect("failure writing bin");
+        println!(
+            "tar file location: {}",
+            tar_file
+                .canonicalize()
+                .expect("error canonicalizing tar file location")
+                .to_str()
+                .unwrap()
+        );
         TokenStream2::from_str(&format!(
             "std::include_bytes!(\"{}\")",
             tar_file
@@ -161,7 +166,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         ))
         .expect("syntax error while embedding project tar.")
     };
-    tracing::info!("project_source_binary complete");
+    println!("project_source_binary complete");
 
     // generate API function for the microservice
     let declare_and_dispatch = q! {
@@ -180,7 +185,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
             let mut platform = #distribution_platform.lock().await;
 
-            turbolift::tracing::info!("platform generated");
+            turbolift::tracing::info!("platform acquired");
 
             if !platform.has_declared(#original_target_function_name) {
                 turbolift::tracing::info!("launching declare");

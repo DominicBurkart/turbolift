@@ -11,7 +11,6 @@ use syn::spanned::Spanned;
 use tar::{Archive, Builder};
 
 use crate::distributed_platform::DistributionResult;
-use crate::CACHE_PATH;
 
 type TypedParams = syn::punctuated::Punctuated<syn::FnArg, syn::Token![,]>;
 type UntypedParams = syn::punctuated::Punctuated<Box<syn::Pat>, syn::Token![,]>;
@@ -180,15 +179,18 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     archive.append_dir(tar_project_base_dir, dir).unwrap();
     while !entries.is_empty() {
         let (entry_parent, entry) = entries.pop_front().unwrap();
-        if entry.file_name().to_str() == Some("target") && entry.metadata().unwrap().is_dir() {
-            // ignore target
+        if entry.metadata().unwrap().is_dir()
+            && (["target", ".git"] // todo could there be cases where removing .git messes up a dependency?
+                .contains(&entry.file_name().to_str().unwrap_or("")))
+        {
+            // ignore target and .git repository
         } else {
             let entry_path_with_parent = entry_parent.join(entry.file_name());
             if entry.path().is_dir() {
                 // ^ bug: the metadata on symlinks sometimes say that they are not directories,
                 // so we have to metadata.is_dir() || (metadata.file_type().is_symlink() && entry.path().is_dir() )
-                if CACHE_PATH.file_name().unwrap() == entry.file_name() {
-                    // don't include the cache
+                if Some("target") == entry.file_name().to_str() {
+                    // don't include any target files
                 } else {
                     archive
                         .append_dir(&entry_path_with_parent, entry.path())
