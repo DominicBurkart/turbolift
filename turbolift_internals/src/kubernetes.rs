@@ -80,6 +80,7 @@ fn function_to_container_name(function_name: &str) -> String {
 
 #[async_trait]
 impl DistributionPlatform for K8s {
+    #[tracing::instrument(skip(project_tar))]
     async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
         // connect to cluster. tries in-cluster configuration first, then falls back to kubeconfig file.
         let deployment_client = Client::try_default().compat().await?;
@@ -214,6 +215,7 @@ impl DistributionPlatform for K8s {
         Ok(())
     }
 
+    #[tracing::instrument]
     async fn dispatch(
         &mut self,
         function_name: &str,
@@ -245,7 +247,7 @@ lazy_static! {
     static ref PORT_RE: Regex = Regex::new(r"0\.0\.0\.0:(\d+)->").unwrap();
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(project_tar))]
 fn make_image(
     function_name: &str,
     project_tar: &[u8],

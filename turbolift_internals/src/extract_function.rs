@@ -210,7 +210,7 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     archive.into_inner().unwrap().into_inner()
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(src))]
 pub fn decompress_proj_src(src: &[u8], dest: &Path) -> DistributionResult<()> {
     let cursor = Cursor::new(src.to_owned());
     let mut archive = Archive::new(cursor);

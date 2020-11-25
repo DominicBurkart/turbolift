@@ -36,7 +36,7 @@ impl LocalQueue {
 #[async_trait]
 impl DistributionPlatform for LocalQueue {
     /// declare a function. Runs once.
-    #[tracing::instrument]
+    #[tracing::instrument(skip(project_tar))]
     async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
         let relative_build_dir = Path::new(".")
             .join(".turbolift")
