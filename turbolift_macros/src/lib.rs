@@ -94,9 +94,10 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         .map(|res| res.expect("could not read entry").path())
         .filter(|path| path.file_name() != CACHE_PATH.file_name())
         .filter(
-            |path| path.to_str() != Some("./target"), // todo we could shorten compile time by sharing deps in ./target,
-                                                      // but I didn't have the bandwidth to debug permissions errors caused
-                                                      // by copying all of the compiled lib files.
+            |path| path.to_str() != Some("./target"),
+            // todo we could shorten compile time by sharing deps in ./target,
+            // but I didn't have the bandwidth to debug permissions errors caused
+            // by copying all of the compiled lib files.
         )
         .collect();
     fs_extra::copy_items(
