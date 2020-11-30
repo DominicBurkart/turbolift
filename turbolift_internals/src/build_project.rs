@@ -43,13 +43,13 @@ pub fn edit_cargo_file(
         // only descriptions with a path
         if let Some(ref mut buf) = detail.path {
             // determine what the symlink for this dependency should be
-            let canonical = original_project_source_dir.join(&buf).canonicalize()?;
+            let dep_canonical = original_project_source_dir.join(&buf).canonicalize()?;
             let dep_location = local_deps_cache.join(name);
 
             // check if the dependency is an ancestor of the project
             let is_ancestor = project_canonical
                 .ancestors()
-                .any(|p| p == canonical.as_path());
+                .any(|p| p == dep_canonical.as_path());
 
             // check that we don't have a naming error
             // todo: automatically handle naming conflicts by mangling the dep for one
@@ -80,7 +80,7 @@ pub fn edit_cargo_file(
                 // copy instead of symlinking here to avoid a symlink loop that will confuse and
                 // break  the tar packer / unpacker.
                 exclusive_recursive_copy(
-                    canonical.as_path(),
+                    dep_canonical.as_path(),
                     dep_location.as_path(),
                     vec![project_canonical.clone()].into_iter().collect(),
                     vec![OsStr::new("target")].into_iter().collect(),

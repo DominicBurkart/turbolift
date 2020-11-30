@@ -63,20 +63,8 @@ impl Default for K8s {
     }
 }
 
-fn function_to_service_name(function_name: &str) -> String {
-    function_name.to_string().replace("_", "-") + "-service"
-}
-
-fn function_to_deployment_name(function_name: &str) -> String {
-    function_name.to_string().replace("_", "-") + "-deployment"
-}
-
 fn function_to_app_name(function_name: &str) -> String {
     function_name.to_string().replace("_", "-")
-}
-
-fn function_to_container_name(function_name: &str) -> String {
-    function_name.to_string().replace("_", "-") + "-container"
 }
 
 #[async_trait]
@@ -96,40 +84,34 @@ impl DistributionPlatform for K8s {
         let image_url = registry_url.join(&tag_in_reg)?.as_str().to_string();
 
         tracing::info!("image made. making deployment and service names.");
-        let deployment_name = function_to_deployment_name(function_name);
-        let service_name = function_to_service_name(function_name);
         tracing::info!("made service_name");
         let app_name = function_to_app_name(function_name);
-        let container_name = function_to_container_name(function_name);
         tracing::info!("made app_name and container_name");
 
         // make deployment
         let deployment_json = serde_json::json!({
             "apiVersion": "apps/v1",
-            "kind": "Deployment",
             "metadata": {
-                "name": deployment_name,
-                "labels": {
-                    "app": app_name
-                }
+                "name": app_name
             },
+            "kind": "Deployment",
             "spec": {
-                "replicas": 1,
                 "selector": {
                     "matchLabels": {
-                        "app": app_name
+                        "run": app_name
                     }
                 },
+                "replicas": 1,
                 "template": {
                     "metadata": {
                         "labels": {
-                            "app": app_name
+                            "run": app_name
                         }
                     },
                     "spec": {
                         "containers": [
                             {
-                                "name": container_name,
+                                "name": app_name,
                                 "image": image_url,
                                 "ports": [
                                     {
@@ -156,23 +138,26 @@ impl DistributionPlatform for K8s {
             "apiVersion": "v1",
             "kind": "Service",
             "metadata": {
-                "name": service_name
+                "name": app_name,
+                "labels": {
+                    "run": app_name
+                }
             },
             "spec": {
-                "type": "NodePort",
-                "selector": {
-                    "app": deployment_name
-                },
                 "ports": [
                     {
                         "protocol": "TCP",
-                        "port": 5000
+                        "port": 5000,
+                        "name": "http"
                     }
-                ]
+                ],
+                "selector": {
+                    "run": app_name
+                }
             }
         }))?;
         tracing::info!("made service");
-        let service = services
+        let _service = services
             .create(&PostParams::default(), &service)
             .compat()
             .await?;
@@ -184,19 +169,20 @@ impl DistributionPlatform for K8s {
             // .expect("error finding node ip")
             // .stdout;
             // String::from_utf8(stdout).expect("could not parse local node ip")
-            "192.169.0.100".to_string()
+            "192.168.0.100".to_string()
         };
         tracing::info!(node_ip = node_ip.as_str(), "found node ip");
 
-        let node_port = service
-            .spec
-            .expect("no specification found for service")
-            .ports
-            .expect("no ports found for service")
-            .iter()
-            .filter_map(|port| port.node_port)
-            .next()
-            .expect("no node port assigned to service");
+        let node_port = 5000;
+        // let node_port = service
+        //     .spec
+        //     .expect("no specification found for service")
+        //     .ports
+        //     .expect("no ports found for service")
+        //     .iter()
+        //     .filter_map(|port| port.node_port)
+        //     .next()
+        //     .expect("no node port assigned to service");
         let service_ip = format!("http://{}:{}", node_ip, node_port);
         tracing::info!(ip = service_ip.as_str(), "generated service_ip");
 
@@ -298,9 +284,7 @@ WORKDIR {}
 
 # build and run project
 RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build{}
-RUN ls -latr .
-RUN ls -latr target/debug
-CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run{} localhost:5000",
+CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run{} 127.0.0.1:5000",
         tar_file_name,
         tar_file_name,
         tar_file_name,
