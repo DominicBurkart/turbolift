@@ -20,12 +20,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           path: './turbolift'
-      - uses: dominicburkart/microk8s-actions@1629a09e791146e6be04134768ed6ac2dc60dc83
-        with:
-          channel: '1.19/stable'
-          rbac: 'true'
-          dns: 'true'
-          storage: 'true'
+      - uses: engineerd/setup-kind@v0.5.0
       - name: install rustup and rust nightly
         run: |
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2020-09-28

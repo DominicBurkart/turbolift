@@ -1,25 +1,29 @@
 use std::collections::HashMap;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::str::FromStr;
 
 use async_trait::async_trait;
 use k8s_openapi::api::apps::v1::Deployment;
-use k8s_openapi::api::core::v1::Service;
+// use k8s_openapi::api::core::v1::Service;
 use kube::api::{Api, PostParams};
 use kube::Client;
 use regex::Regex;
 use tokio_compat_02::FutureExt;
 use url::Url;
+use tokio::time::{sleep, Duration};
 
 use crate::distributed_platform::{
     ArgsString, DistributionPlatform, DistributionResult, JsonResponse,
 };
 use crate::utils::RELEASE_FLAG;
 use crate::CACHE_PATH;
+use std::io::Write;
 
 const TURBOLIFT_K8S_NAMESPACE: &str = "default";
-const LOCAL_REGISTRY_URL: &str = "http://localhost:32000";
 type ImageTag = String;
+
+pub const INTERNAL_PORT: i32 = 32766;
+pub const HOST_PORT: i32 = 80;
 
 /// `K8s` is the interface for turning rust functions into autoscaling microservices
 /// using turbolift. It requires docker and kubernetes / kubectl to already be setup on the
@@ -75,26 +79,24 @@ impl DistributionPlatform for K8s {
         let deployment_client = Client::try_default().compat().await?;
         let deployments: Api<Deployment> =
             Api::namespaced(deployment_client, TURBOLIFT_K8S_NAMESPACE);
-        let service_client = Client::try_default().compat().await?;
-        let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
+        // let service_client = Client::try_default().compat().await?;
+        // let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
 
-        // generate image & host it on a local registry
-        let registry_url = Url::parse(LOCAL_REGISTRY_URL)?;
-        let tag_in_reg = make_image(function_name, project_tar, &registry_url)?;
-        let image_url = registry_url.join(&tag_in_reg)?.as_str().to_string();
+        // generate image & push
+        let tag_in_reg = make_image(function_name, project_tar)?;
 
-        tracing::info!("image made. making deployment and service names.");
-        tracing::info!("made service_name");
+        println!("image made. making deployment and service names.");
+        println!("made service_name");
         let app_name = function_to_app_name(function_name);
-        tracing::info!("made app_name and container_name");
+        println!("made app_name and container_name");
 
         // make deployment
         let deployment_json = serde_json::json!({
             "apiVersion": "apps/v1",
-            "metadata": {
-                "name": app_name
-            },
             "kind": "Deployment",
+            "metadata": {
+                "name": app_name,
+            },
             "spec": {
                 "selector": {
                     "matchLabels": {
@@ -112,10 +114,11 @@ impl DistributionPlatform for K8s {
                         "containers": [
                             {
                                 "name": app_name,
-                                "image": image_url,
+                                "image": tag_in_reg,
+                                "imagePullPolicy": "IfNotPresent", // prefer local image
                                 "ports": [
                                     {
-                                        "containerPort": 5000
+                                        "containerPort": INTERNAL_PORT
                                     }
                                 ]
                             },
@@ -124,44 +127,78 @@ impl DistributionPlatform for K8s {
                 }
             }
         });
-        tracing::info!("deployment_json generated");
+        println!("deployment_json generated");
         let deployment = serde_json::from_value(deployment_json)?;
-        tracing::info!("deployment generated");
+        println!("deployment generated");
         deployments
             .create(&PostParams::default(), &deployment)
             .compat()
             .await?;
-        tracing::info!("created deployment");
+        println!("created deployment");
 
         // make service pointing to deployment
-        let service = serde_json::from_value(serde_json::json!({
-            "apiVersion": "v1",
-            "kind": "Service",
+       if !Command::new("kubectl")
+           .args(format!("expose deployment/{}", app_name).as_str().split(' '))
+           .status()?
+           .success() {
+           tracing::error!("could not make service");
+           panic!("could not make service to expose deployment");
+       }
+
+        tracing::info!("created service");
+
+        // make ingress pointing to service
+        let ingress = serde_json::json!({
+            "apiVersion": "networking.k8s.io/v1",
+            "kind": "Ingress",
             "metadata": {
                 "name": app_name,
-                "labels": {
-                    "run": app_name
-                }
             },
             "spec": {
-                "ports": [
+                // "defaultBackend": {
+                //     "service": {
+                //         "name": app_name,
+                //         "port": {
+                //             "number": PORT
+                //         }
+                //     }
+                // }
+                "rules": [
                     {
-                        "protocol": "TCP",
-                        "port": 5000,
-                        "name": "http"
+                        "http": {
+                            "paths": [
+                                {
+                                    "path": format!("/{}", app_name),
+                                    "pathType": "Prefix",
+                                    "backend": {
+                                        "service": {
+                                            "name": app_name,
+                                            "port": {
+                                                "number": INTERNAL_PORT
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
                     }
-                ],
-                "selector": {
-                    "run": app_name
-                }
+                ]
             }
-        }))?;
-        tracing::info!("made service");
-        let _service = services
-            .create(&PostParams::default(), &service)
-            .compat()
-            .await?;
-        tracing::info!("created service");
+        });
+
+        let mut apply_ingress_child = Command::new("kubectl")
+            .args("apply -f -".split(' '))
+            .stdin(Stdio::piped())
+            .spawn()?;
+        apply_ingress_child
+            .stdin
+            .as_mut()
+            .expect("not able to write to ingress apply stdin")
+            .write_all(ingress.to_string().as_bytes())?;
+        if !apply_ingress_child.wait()?.success() {
+            panic!("failed to apply ingress: {}\nis ingress enabled on this cluster?", ingress.to_string())
+        }
+
         let node_ip = {
             // let stdout = Command::new("kubectl")
             // .args("get nodes --selector=kubernetes.io/role!=master -o jsonpath={.items[*].status.addresses[?\\(@.type==\\\"InternalIP\\\"\\)].address}".split(' '))
@@ -169,11 +206,11 @@ impl DistributionPlatform for K8s {
             // .expect("error finding node ip")
             // .stdout;
             // String::from_utf8(stdout).expect("could not parse local node ip")
-            "192.168.0.100".to_string()
+            "localhost".to_string()
         };
         tracing::info!(node_ip = node_ip.as_str(), "found node ip");
 
-        let node_port = 5000;
+        // let node_port: i32 = 5000;
         // let node_port = service
         //     .spec
         //     .expect("no specification found for service")
@@ -183,7 +220,8 @@ impl DistributionPlatform for K8s {
         //     .filter_map(|port| port.node_port)
         //     .next()
         //     .expect("no node port assigned to service");
-        let service_ip = format!("http://{}:{}", node_ip, node_port);
+        // let service_ip = format!("http://{}", node_ip, node_port);
+        let service_ip = format!("http://localhost:{}/{}/", HOST_PORT, app_name);
         tracing::info!(ip = service_ip.as_str(), "generated service_ip");
 
         // todo make sure that the pod and service were correctly started before returning
@@ -207,6 +245,9 @@ impl DistributionPlatform for K8s {
         //         // ^ todo attach error context from child
         //     }
         // }
+
+        sleep(Duration::from_secs(600)).await;
+        // todo implement the check on whether the service is running / pod failed
 
         self.fn_names_to_services
             .insert(function_name.to_string(), Url::from_str(&service_ip)?);
@@ -250,8 +291,11 @@ lazy_static! {
 fn make_image(
     function_name: &str,
     project_tar: &[u8],
-    registry_url: &Url,
 ) -> anyhow::Result<ImageTag> {
+    // todo: we should add some random stuff to the function_name to avoid collisions and figure
+    // out when to overwrite vs not.
+
+
     tracing::info!("making image");
     // set up directory and dockerfile
     let build_dir = CACHE_PATH.join(format!("{}_k8s_temp_dir", function_name).as_str());
@@ -284,13 +328,14 @@ WORKDIR {}
 
 # build and run project
 RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build{}
-CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run{} 127.0.0.1:5000",
+CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run{} 127.0.0.1:{}",
         tar_file_name,
         tar_file_name,
         tar_file_name,
         function_name,
         RELEASE_FLAG,
-        RELEASE_FLAG
+        RELEASE_FLAG,
+        INTERNAL_PORT
     );
     std::fs::write(&dockerfile_path, docker_file)?;
     std::fs::write(&tar_path, project_tar)?;
@@ -298,7 +343,7 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run{} 127.0.0.1:5000",
     let result = (|| {
         // build image
         let build_cmd = format!(
-            "build -t {} {}",
+            "build -t {}:latest {}",
             function_name,
             build_dir_canonical.to_string_lossy()
         );
@@ -311,41 +356,46 @@ CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run{} 127.0.0.1:5000",
             return Err(anyhow::anyhow!("docker image build failure"));
         }
 
-        let image_tag = format!(
-            "localhost:{}/{}",
-            registry_url.port().unwrap(),
-            function_name
-        );
+        // let image_tag = format!(
+        //     "localhost:{}/{}",
+        //     registry_url.port().unwrap(),
+        //     function_name
+        // );
 
         tracing::info!("made image tag");
 
         // tag image
-        let tag_args = format!("image tag {} {}", function_name, image_tag);
-        let tag_result = Command::new("docker")
-            .args(tag_args.as_str().split(' '))
-            .status()?;
-        if !tag_result.success() {
-            return Err(anyhow::anyhow!("docker image tag failure"));
-        }
-
-        tracing::info!("image tagged");
+        // let tag_args = format!("image tag {} {}", function_name, function_name);
+        // let tag_result = Command::new("docker")
+        //     .args(tag_args.as_str().split(' '))
+        //     .status()?;
+        // if !tag_result.success() {
+        //     return Err(anyhow::anyhow!("docker image tag failure"));
+        // }
+        // tracing::info!("image tagged");
 
         // push image to local repo
-        let push_status = Command::new("docker")
-            .arg("push")
-            .arg(image_tag.clone())
-            .status()?;
-        tracing::info!("docker push command did not explode");
-        if !push_status.success() {
-            return Err(anyhow::anyhow!("docker image push failure"));
-        }
+        // let image_tag = format!("dominicburkart/{}:latest", function_name.clone());
+        // let push_status = Command::new("docker")
+        //     .arg("push")
+        //     .arg(image_tag.clone())
+        //     .status()?;
+        // tracing::info!("docker push command did not explode");
+        // if !push_status.success() {
+        //     return Err(anyhow::anyhow!("docker image push failure"));
+        // }
 
-        Ok(image_tag)
+        // println!("haha >:D {}", image_tag);
+
+        Ok(function_name.into())
     })();
     tracing::info!("removing build dir");
     // always remove the build directory, even on build error
     std::fs::remove_dir_all(build_dir_canonical)?;
     tracing::info!("returning result");
+
+    Command::new("kind").args(format!("load docker-image {}", function_name).as_str().split(' ')).status()?;
+    // todo ^ temp fix while debugging kind
     result
 }
 
