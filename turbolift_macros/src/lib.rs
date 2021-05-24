@@ -197,17 +197,17 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             turbolift::tracing::info!("platform acquired");
 
             if !platform.has_declared(#original_target_function_name) {
-                turbolift::tracing::info!("launching declare");
+                println!("launching declare");
                 platform
                     .declare(#original_target_function_name, #project_source_binary)
                     .compat()
                     .await?;
-                turbolift::tracing::info!("declare completed");
+                println!("declare completed");
             }
 
             let params = #params_vec.join("/");
 
-            turbolift::tracing::info!("launching dispatch");
+            println!("launching dispatch");
             let resp_string = platform
                 .dispatch(
                     #original_target_function_name,
@@ -215,7 +215,8 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                 )
                 .compat()
                 .await?;
-            turbolift::tracing::info!("dispatch completed");
+            println!("dispatch completed");
+            println!("resp_string: {}", &resp_string);
             Ok(turbolift::serde_json::from_str(&resp_string)?)
         }
     };

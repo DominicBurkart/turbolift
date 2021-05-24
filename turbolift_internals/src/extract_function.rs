@@ -5,8 +5,8 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
-use syn::export::TokenStream2;
 use syn::spanned::Spanned;
 use tar::{Archive, Builder};
 
