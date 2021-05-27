@@ -138,18 +138,6 @@ impl DistributionPlatform for K8s {
         println!("created deployment");
 
         // make service pointing to deployment
-        if !Command::new("kubectl")
-            .args(
-                format!("expose deployment/{}", app_name)
-                    .as_str()
-                    .split(' '),
-            )
-            .status()?
-            .success()
-        {
-            tracing::error!("could not make service");
-            panic!("could not make service to expose deployment");
-        }
         let service_json = serde_json::json!({
             "apiVersion": "v1",
             "kind": "Service",
