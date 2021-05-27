@@ -32,7 +32,8 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let untyped_params = extract_function::to_untyped_params(typed_params.clone());
     let untyped_params_tokens = untyped_params.to_token_stream();
     let params_as_path = extract_function::to_path_params(untyped_params.clone());
-    // let wrapper_route =  format!("/{}/{}", &app_name, &params_as_path);
+    let wrapper_route = format!("/{}/{}", &original_target_function_name, &params_as_path);
+    // ^ todo: make this unique even if multiple functions with the same name are distributed at the same time
     let param_types = extract_function::to_param_types(typed_params.clone());
     let params_vec = extract_function::params_json_vec(untyped_params.clone());
     let result_type = extract_function::get_result_type(&signature.output);
@@ -55,14 +56,14 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         #dummy_function
         #target_function
 
-        // #[get(#wrapper_route)]
-        // #[turbolift::tracing::instrument]
-        // async fn turbolift_wrapper(web::Path((#untyped_params_tokens)): web::Path<(#param_types)>) -> Result<HttpResponse> {
-        //     Ok(
-        //         HttpResponse::Ok()
-        //             .json(#function_name(#untyped_params_tokens))
-        //     )
-        // }
+        #[get(#wrapper_route)]
+        #[turbolift::tracing::instrument]
+        async fn turbolift_wrapper(web::Path((#untyped_params_tokens)): web::Path<(#param_types)>) -> Result<HttpResponse> {
+            Ok(
+                HttpResponse::Ok()
+                    .json(#function_name(#untyped_params_tokens))
+            )
+        }
 
         async fn return_path(req: HttpRequest) -> impl Responder {
             HttpResponse::Ok().body(req.uri().to_string())
@@ -79,13 +80,9 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             HttpServer::new(
                 ||
                     App::new()
-                        .default_service(
-                            web::resource("")
-                                .route(web::get().to(return_path))
+                        .service(
+                            turbolift_wrapper
                         )
-                        // .service(
-                        //     turbolift_wrapper
-                        // )
             )
             .bind(ip_and_port)?
             .run()

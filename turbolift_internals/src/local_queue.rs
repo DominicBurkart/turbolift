@@ -103,7 +103,7 @@ impl DistributionPlatform for LocalQueue {
             .text()
             .compat()
             .await?);
-        tracing::info!("received response");
+        println!("received response");
         resp
     }
 
