@@ -164,7 +164,7 @@ impl DistributionPlatform for K8s {
 
         // make ingress pointing to service
         let ingress = serde_json::json!({
-            "apiVersion": "networking.k8s.io/v1",
+            "apiVersion": "v1",
             "kind": "Ingress",
             "metadata": {
                 "name": app_name
