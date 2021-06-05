@@ -3,8 +3,8 @@ use std::process::{Command, Stdio};
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use k8s_openapi::api::apps::v1::Deployment;
-use k8s_openapi::api::core::v1::Service;
+// use k8s_openapi::api::apps::v1::Deployment;
+use k8s_openapi::api::core::v1::{Pod, Service};
 use kube::api::{Api, PostParams};
 use kube::Client;
 use regex::Regex;
@@ -22,8 +22,8 @@ use std::io::Write;
 const TURBOLIFT_K8S_NAMESPACE: &str = "default";
 type ImageTag = String;
 
-pub const CONTAINER_PORT: i32 = 80;
-pub const SERVICE_PORT: i32 = 80;
+pub const CONTAINER_PORT: i32 = 5678;
+pub const SERVICE_PORT: i32 = 5678;
 pub const EXTERNAL_PORT: i32 = 80;
 
 /// `K8s` is the interface for turning rust functions into autoscaling microservices
@@ -77,80 +77,103 @@ impl DistributionPlatform for K8s {
     #[tracing::instrument(skip(project_tar))]
     async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
         // connect to cluster. tries in-cluster configuration first, then falls back to kubeconfig file.
-        let deployment_client = Client::try_default().compat().await?;
-        let deployments: Api<Deployment> =
-            Api::namespaced(deployment_client, TURBOLIFT_K8S_NAMESPACE);
+        let pod_client = Client::try_default().compat().await?;
+        let pods: Api<Pod> = Api::namespaced(pod_client, TURBOLIFT_K8S_NAMESPACE);
+        // let deployment_client = Client::try_default().compat().await?;
+        // let deployments: Api<Deployment> =
+        //     Api::namespaced(deployment_client, TURBOLIFT_K8S_NAMESPACE);
         let service_client = Client::try_default().compat().await?;
         let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
 
         // generate image & push
         let app_name = function_to_app_name(function_name);
+        let service_name = format!("{}-service", app_name);
         let tag_in_reg = make_image(&app_name, project_tar)?;
 
         println!("image made. making deployment and service names.");
         println!("made service_name");
         println!("made app_name and container_name");
-
-        // make deployment
-        let deployment_json = serde_json::json!({
-            "apiVersion": "apps/v1",
-            "kind": "Deployment",
-            "metadata": {
-                "name": app_name,
-            },
-            "spec": {
-                "selector": {
-                    "matchLabels": {
-                        "run": app_name
-                    }
-                },
-                "replicas": 1,
-                "template": {
-                    "metadata": {
-                        "labels": {
-                            "run": app_name,
-                        }
-                    },
-                    "spec": {
-                        "containers": [
-                            {
-                                "name": app_name,
-                                "image": tag_in_reg,
-                                "imagePullPolicy": "IfNotPresent", // prefer local image
-                                "ports": [
-                                    {
-                                        "containerPort": CONTAINER_PORT
-                                    }
-                                ]
-                            },
-                        ]
-                    }
+        let pod_json = serde_json::json!({
+           "kind": "Pod",
+           "apiVersion":"v1",
+           "metadata": {
+             "name": format!("{}-app", app_name),
+             "labels": {
+               "app": app_name
+             }
+           },
+           "spec": {
+             "containers": [
+                {
+                    "name": format!("{}-app", app_name),
+                    "image": tag_in_reg
                 }
-            }
+             ]
+           }
         });
-        println!("deployment_json generated");
-        let deployment = serde_json::from_value(deployment_json)?;
-        println!("deployment generated");
-        deployments
-            .create(&PostParams::default(), &deployment)
-            .compat()
-            .await?;
-        println!("created deployment");
+        let pod = serde_json::from_value(pod_json)?;
+        pods.create(&PostParams::default(), &pod).compat().await?;
+
+        // // make deployment
+        // let deployment_json = serde_json::json!({
+        //     "apiVersion": "apps/v1",
+        //     "kind": "Deployment",
+        //     "metadata": {
+        //         "name": app_name,
+        //     },
+        //     "spec": {
+        //         "selector": {
+        //             "matchLabels": {
+        //                 "run": app_name
+        //             }
+        //         },
+        //         "replicas": 1,
+        //         "template": {
+        //             "metadata": {
+        //                 "labels": {
+        //                     "run": app_name,
+        //                 }
+        //             },
+        //             "spec": {
+        //                 "containers": [
+        //                     {
+        //                         "name": app_name,
+        //                         "image": tag_in_reg,
+        //                         "imagePullPolicy": "IfNotPresent", // prefer local image
+        //                         "ports": [
+        //                             {
+        //                                 "containerPort": CONTAINER_PORT
+        //                             }
+        //                         ]
+        //                     },
+        //                 ]
+        //             }
+        //         }
+        //     }
+        // });
+        // println!("deployment_json generated");
+        // let deployment = serde_json::from_value(deployment_json)?;
+        // println!("deployment generated");
+        // deployments
+        //     .create(&PostParams::default(), &deployment)
+        //     .compat()
+        //     .await?;
+        // println!("created deployment");
 
         // make service pointing to deployment
         let service_json = serde_json::json!({
             "apiVersion": "v1",
             "kind": "Service",
             "metadata": {
-                "name": app_name
+                "name": service_name,
             },
             "spec": {
                 "selector": {
-                    "run": app_name
+                    "app": app_name
                 },
                 "ports": [{
                     "port": SERVICE_PORT,
-                    "targetPort": CONTAINER_PORT,
+                    // "targetPort": CONTAINER_PORT,
                 }]
             }
         });
@@ -164,43 +187,47 @@ impl DistributionPlatform for K8s {
 
         // make ingress pointing to service
         let ingress = serde_json::json!({
-            "apiVersion": "v1",
+            "apiVersion": "networking.k8s.io/v1beta1",
             "kind": "Ingress",
             "metadata": {
-                "name": app_name
+                "name": format!("{}-ingress", app_name),
                 // "annotations": {
                 //     "nginx.ingress.kubernetes.io/rewrite-target": "/"
                 // }
             },
             "spec": {
-                "defaultBackend": {
-                    "service": {
-                        "name": app_name,
-                        "port": {
-                            "number": SERVICE_PORT
-                        }
-                    }
-                }
-                // "rules": [
-                //     {
-                //         "http": {
-                //             "paths": [
-                //                 {
-                //                     "path": format!("/{}", app_name),
-                //                     "pathType": "Prefix",
-                //                     "backend": {
-                //                         "service" : {
-                //                             "name": app_name,
-                //                             "port": {
-                //                                 "number": SERVICE_PORT
-                //                             }
-                //                         }
-                //                     }
-                //                 }
-                //             ]
+                // "defaultBackend": {
+                //     "service": {
+                //         "name": app_name,
+                //         "port": {
+                //             "number": SERVICE_PORT
                 //         }
                 //     }
-                // ]
+                // }
+                "rules": [
+                    {
+                        "http": {
+                            "paths": [
+                                {
+                                    "path": format!("/{}", app_name),
+                                    // "pathType": "Prefix",
+                                    // "backend": {
+                                    //     "service" : {
+                                    //         "name": app_name,
+                                    //         "port": {
+                                    //             "number": SERVICE_PORT
+                                    //         }
+                                    //     }
+                                    // }
+                                    "backend": {
+                                        "serviceName": app_name,
+                                        "servicePort": SERVICE_PORT
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
             }
         });
 
