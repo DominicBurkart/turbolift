@@ -163,7 +163,7 @@ impl DistributionPlatform for K8s {
 
         // make ingress pointing to service
         let ingress = serde_json::json!({
-            "apiVersion": "networking.k8s.io/v1",
+            "apiVersion": "networking.k8s.io/v1beta1",
             "kind": "Ingress",
             "metadata": {
                 "name": ingress_name
@@ -175,13 +175,18 @@ impl DistributionPlatform for K8s {
                             "paths": [
                                 {
                                     "path": format!("/{}", app_name),
+                                    // "pathType": "Prefix",
+                                    // "backend": {
+                                    //     "service" : {
+                                    //         "name": app_name,
+                                    //         "port": {
+                                    //             "number": SERVICE_PORT
+                                    //         }
+                                    //     }
+                                    // }
                                     "backend": {
-                                        "service" : {
-                                            "name": service_name,
-                                            "port": {
-                                                "number": SERVICE_PORT
-                                            }
-                                        }
+                                        "serviceName": service_name,
+                                        "servicePort": SERVICE_PORT
                                     }
                                 }
                             ]
