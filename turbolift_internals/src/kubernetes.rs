@@ -186,17 +186,13 @@ impl DistributionPlatform for K8s {
                                 {
                                     "path": format!("/{}", app_name),
                                     "pathType": "Prefix",
-                                    // "backend": {
-                                    //     "service" : {
-                                    //         "name": app_name,
-                                    //         "port": {
-                                    //             "number": SERVICE_PORT
-                                    //         }
-                                    //     }
-                                    // }
                                     "backend": {
-                                        "serviceName": service_name,
-                                        "servicePort": SERVICE_PORT
+                                        "service" : {
+                                            "name": app_name,
+                                            "port": {
+                                                "number": SERVICE_PORT
+                                            }
+                                        }
                                     }
                                 }
                             ]
