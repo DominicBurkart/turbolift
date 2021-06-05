@@ -16,6 +16,8 @@ type TypedParams = syn::punctuated::Punctuated<syn::FnArg, syn::Token![,]>;
 type UntypedParams = syn::punctuated::Punctuated<Box<syn::Pat>, syn::Token![,]>;
 type ParamTypes = syn::punctuated::Punctuated<Box<syn::Type>, syn::Token![,]>;
 
+const IGNORED_DIRECTORIES: [&str; 3] = ["target", ".git", ".turbolift"];
+
 #[tracing::instrument]
 pub fn get_fn_item(function: TokenStream) -> syn::ItemFn {
     match syn::parse2(function).unwrap() {
@@ -180,7 +182,7 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     while !entries.is_empty() {
         let (entry_parent, entry) = entries.pop_front().unwrap();
         if entry.metadata().unwrap().is_dir()
-            && (["target", ".git"] // todo could there be cases where removing .git messes up a dependency?
+            && (IGNORED_DIRECTORIES // todo could there be cases where removing .git messes up a dependency?
                 .contains(&entry.file_name().to_str().unwrap_or("")))
         {
             // ignore target and .git repository
@@ -189,9 +191,7 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
             if entry.path().is_dir() {
                 // ^ bug: the metadata on symlinks sometimes say that they are not directories,
                 // so we have to metadata.is_dir() || (metadata.file_type().is_symlink() && entry.path().is_dir() )
-                if Some("target") == entry.file_name().to_str()
-                    || Some(".turbolift") == entry.file_name().to_str()
-                {
+                if IGNORED_DIRECTORIES.contains(&entry.file_name().to_str().unwrap_or("")) {
                     // don't include any target or .turbolift directories
                 } else {
                     archive
