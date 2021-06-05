@@ -189,8 +189,10 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
             if entry.path().is_dir() {
                 // ^ bug: the metadata on symlinks sometimes say that they are not directories,
                 // so we have to metadata.is_dir() || (metadata.file_type().is_symlink() && entry.path().is_dir() )
-                if Some("target") == entry.file_name().to_str() {
-                    // don't include any target files
+                if Some("target") == entry.file_name().to_str()
+                    || Some(".turbolift") == entry.file_name().to_str()
+                {
+                    // don't include any target or .turbolift directories
                 } else {
                     archive
                         .append_dir(&entry_path_with_parent, entry.path())
