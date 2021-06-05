@@ -33,6 +33,7 @@ get_if_addrs = "0.5.3"
 regex = "1"
 tracing = {version="0.1", features=["attributes"]}
 tracing-futures = "0.2.4"
+uuid = { version="0.8", features=["v4"] }
 
 # kubernetes-specific requirements
 kube = "0.51.0"

@@ -15,6 +15,7 @@ use crate::distributed_platform::{
 };
 use crate::extract_function::decompress_proj_src;
 use crate::CACHE_PATH;
+use uuid::Uuid;
 
 type AddressAndPort = Url;
 type FunctionName = String;
@@ -37,15 +38,23 @@ impl LocalQueue {
 impl DistributionPlatform for LocalQueue {
     /// declare a function. Runs once.
     #[tracing::instrument(skip(project_tar))]
-    async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
+    async fn declare(
+        &mut self,
+        function_name: &str,
+        run_id: Uuid,
+        project_tar: &[u8],
+    ) -> DistributionResult<()> {
         let relative_build_dir = Path::new(".")
             .join(".turbolift")
             .join(".worker_build_cache");
         fs::create_dir_all(&relative_build_dir)?;
         let build_dir = relative_build_dir.canonicalize()?;
         decompress_proj_src(project_tar, &build_dir).unwrap();
-        let function_executable =
-            Path::new(CACHE_PATH.as_os_str()).join(function_name.to_string() + "_server");
+        let function_executable = Path::new(CACHE_PATH.as_os_str()).join(format!(
+            "{}_{}_server",
+            function_name.to_string(),
+            run_id.as_u128()
+        ));
         make_executable(&build_dir.join(function_name), Some(&function_executable))?;
         self.fn_name_to_binary_path
             .insert(function_name.to_string(), function_executable);

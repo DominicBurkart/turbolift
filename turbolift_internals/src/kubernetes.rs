@@ -18,6 +18,7 @@ use crate::distributed_platform::{
 use crate::utils::RELEASE_FLAG;
 use crate::CACHE_PATH;
 use std::io::Write;
+use uuid::Uuid;
 
 const TURBOLIFT_K8S_NAMESPACE: &str = "default";
 type ImageTag = String;
@@ -68,14 +69,19 @@ impl Default for K8s {
     }
 }
 
-fn function_to_app_name(function_name: &str) -> String {
+fn sanitize_function_name(function_name: &str) -> String {
     function_name.to_string().replace("_", "-")
 }
 
 #[async_trait]
 impl DistributionPlatform for K8s {
     #[tracing::instrument(skip(project_tar))]
-    async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
+    async fn declare(
+        &mut self,
+        function_name: &str,
+        run_id: Uuid,
+        project_tar: &[u8],
+    ) -> DistributionResult<()> {
         // connect to cluster. tries in-cluster configuration first, then falls back to kubeconfig file.
         let deployment_client = Client::try_default().compat().await?;
         let deployments: Api<Deployment> =
@@ -84,7 +90,11 @@ impl DistributionPlatform for K8s {
         let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
 
         // generate image & push
-        let app_name = function_to_app_name(function_name);
+        let app_name = format!(
+            "{}-{}",
+            sanitize_function_name(function_name),
+            run_id.as_u128()
+        );
         let container_name = format!("{}-app", app_name);
         let deployment_name = format!("{}-deployment", app_name);
         let service_name = format!("{}-service", app_name);
@@ -163,7 +173,7 @@ impl DistributionPlatform for K8s {
 
         // make ingress pointing to service
         let ingress = serde_json::json!({
-            "apiVersion": "networking.k8s.io/v1beta1",
+            "apiVersion": "networking.k8s.io/v1",
             "kind": "Ingress",
             "metadata": {
                 "name": ingress_name
