@@ -220,7 +220,7 @@ impl DistributionPlatform for K8s {
                                     //     }
                                     // }
                                     "backend": {
-                                        "serviceName": app_name,
+                                        "serviceName": service_name,
                                         "servicePort": SERVICE_PORT
                                     }
                                 }
@@ -375,8 +375,9 @@ RUN cat {} | tar xvf -
 WORKDIR {}
 
 # build and run project
-RUN RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build{}
-CMD RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run{} 127.0.0.1:{}",
+ENV RUSTFLAGS='--cfg procmacro2_semver_exempt'
+RUN cargo build{}
+CMD cargo run{} 0.0.0.0:{}",
         tar_file_name,
         tar_file_name,
         tar_file_name,
