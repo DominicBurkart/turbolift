@@ -175,7 +175,7 @@ impl DistributionPlatform for K8s {
                             "paths": [
                                 {
                                     "path": format!("/{}", app_name),
-                                    // "pathType": "Prefix",
+                                    "pathType": "Prefix",
                                     // "backend": {
                                     //     "service" : {
                                     //         "name": app_name,
