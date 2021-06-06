@@ -102,7 +102,7 @@ impl DistributionPlatform for K8s {
         let deployment_name = format!("{}-deployment", app_name);
         let service_name = format!("{}-service", app_name);
         let ingress_name = format!("{}-ingress", app_name);
-        let tag_in_reg = make_image(&app_name, project_tar)?;
+        let tag_in_reg = make_image(&app_name, function_name, project_tar)?;
 
         println!("image made. making deployment and service names.");
         println!("made service_name");
@@ -314,7 +314,7 @@ lazy_static! {
 }
 
 #[tracing::instrument(skip(project_tar))]
-fn make_image(app_name: &str, project_tar: &[u8]) -> anyhow::Result<ImageTag> {
+fn make_image(app_name: &str, function_name: &str, project_tar: &[u8]) -> anyhow::Result<ImageTag> {
     // todo: we should add some random stuff to the function_name to avoid collisions and figure
     // out when to overwrite vs not.
 
@@ -346,12 +346,12 @@ COPY {tar_file_name} {tar_file_name}
 RUN cat {tar_file_name} | tar xvf -
 
 # enter into unpacked source directory
-WORKDIR {app_name}
+WORKDIR {function_name}
 
 # build and run project
 ENV RUSTFLAGS='--cfg procmacro2_semver_exempt'
 {compilation_scheme}",
-        app_name=app_name,
+        function_name=function_name,
         tar_file_name=tar_file_name,
         compilation_scheme={
             if let Some(architecture) = TARGET_ARCHITECTURE {
@@ -361,11 +361,11 @@ RUN cargo install --target {architecture} --path .
 
 # copy the binary from the builder, leaving the build environment.
 FROM scratch
-COPY --from=builder /usr/local/cargo/bin/{app_name} .
-CMD [\"./{app_name}\", \"0.0.0.0:{container_port}\"]",
+COPY --from=builder /usr/local/cargo/bin/{function_name} .
+CMD [\"./{function_name}\", \"0.0.0.0:{container_port}\"]",
                  architecture=architecture,
                  release_flag=RELEASE_FLAG,
-                 app_name=app_name,
+                 function_name=function_name,
                  container_port=CONTAINER_PORT
                 )
             } else {
@@ -379,7 +379,7 @@ CMD [\"./{app_name}\", \"0.0.0.0:{container_port}\"]",
     );
     std::fs::write(&dockerfile_path, docker_file)?;
     std::fs::write(&tar_path, project_tar)?;
-    let unique_tag = format!("{}:turbolift", app_name); // todo find better unique tag
+    let unique_tag = format!("{}:turbolift", app_name);
 
     let result = (|| {
         // build image
