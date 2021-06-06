@@ -66,10 +66,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             )
         }
 
-        async fn return_path(req: HttpRequest) -> impl Responder {
-            HttpResponse::Ok().body(req.uri().to_string())
-        }
-
         #[actix_web::main]
         #[turbolift::tracing::instrument]
         async fn main() -> std::io::Result<()> {
