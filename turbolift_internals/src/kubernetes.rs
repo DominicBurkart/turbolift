@@ -355,10 +355,9 @@ ENV RUSTFLAGS='--cfg procmacro2_semver_exempt'
         tar_file_name=tar_file_name,
         compilation_scheme={
             if let Some(architecture) = TARGET_ARCHITECTURE {
-                format!("RUN cargo build{release_flag}
-# install the project binary with the given architecture.
+                format!("# install the project binary with the given architecture.
 RUN rustup target add {architecture}
-RUN cargo install --target {architecture} --path .
+RUN cargo install{release_flag} --target {architecture} --path .
 
 # copy the binary from the builder, leaving the build environment.
 FROM scratch
