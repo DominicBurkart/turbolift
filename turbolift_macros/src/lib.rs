@@ -59,6 +59,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         #[get(#wrapper_route)]
         #[turbolift::tracing::instrument]
         async fn turbolift_wrapper(web::Path((#untyped_params_tokens)): web::Path<(#param_types)>) -> Result<HttpResponse> {
+            println!("in the wappa");
             Ok(
                 HttpResponse::Ok()
                     .json(#function_name(#untyped_params_tokens))
@@ -188,11 +189,11 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             use turbolift::tokio_compat_02::FutureExt;
             use turbolift::uuid::Uuid;
 
-            turbolift::tracing::info!("in original target function");
+            println!("in original target function");
 
             let mut platform = #distribution_platform.lock().await;
 
-            turbolift::tracing::info!("platform acquired");
+            println!("platform acquired");
 
             if !platform.has_declared(#original_target_function_name) {
                 println!("launching declare");
@@ -242,6 +243,7 @@ pub fn on(_distribution_platform: TokenStream, function_: TokenStream) -> TokenS
         #[turbolift::tracing::instrument]
         async fn #original_target_function_ident(#typed_params) -> turbolift::DistributionResult<#output_type> {
             #wrapped_original_function
+            println!("wuuuh in funcypoo: {}", wrapped_function(#untyped_params));
             Ok(wrapped_function(#untyped_params))
         }
     };

@@ -17,6 +17,7 @@ lazy_static! {
 
 #[on(K8S)]
 fn square(u: u64) -> u64 {
+    println!("🟩");
     u * u
 }
 
