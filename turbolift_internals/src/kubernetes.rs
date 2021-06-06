@@ -26,6 +26,9 @@ type ImageTag = String;
 pub const CONTAINER_PORT: i32 = 5678;
 pub const SERVICE_PORT: i32 = 5678;
 pub const EXTERNAL_PORT: i32 = 80;
+pub const TARGET_ARCHITECTURE: Option<&str> = Some("x86_64-unknown-linux-musl");
+// ^ todo: let the user set this to enable multi-step builds, or by default ship the source
+// code and run with cargo so that the build can be compiled on the fly.
 
 /// `K8s` is the interface for turning rust functions into autoscaling microservices
 /// using turbolift. It requires docker and kubernetes / kubectl to already be setup on the
@@ -324,7 +327,7 @@ fn make_image(app_name: &str, project_tar: &[u8]) -> anyhow::Result<ImageTag> {
     let tar_file_name = "source.tar";
     let tar_path = build_dir_canonical.join(tar_file_name);
     let docker_file = format!(
-        "FROM ubuntu:latest
+        "FROM ubuntu:latest as builder
 # set timezone (otherwise tzinfo stops dep installation with prompt for time zone)
 ENV TZ=Etc/UTC
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
@@ -337,25 +340,42 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
 ENV PATH=/root/.cargo/bin:$PATH
 
 # copy tar file
-COPY {} {}
+COPY {tar_file_name} {tar_file_name}
 
 # unpack tar
-RUN cat {} | tar xvf -
+RUN cat {tar_file_name} | tar xvf -
 
 # enter into unpacked source directory
-WORKDIR {}
+WORKDIR {app_name}
 
 # build and run project
 ENV RUSTFLAGS='--cfg procmacro2_semver_exempt'
-RUN cargo build{}
-CMD cargo run{} 0.0.0.0:{}",
-        tar_file_name,
-        tar_file_name,
-        tar_file_name,
-        app_name,
-        RELEASE_FLAG,
-        RELEASE_FLAG,
-        CONTAINER_PORT
+{compilation_scheme}",
+        app_name=app_name,
+        tar_file_name=tar_file_name,
+        compilation_scheme={
+            if let Some(architecture) = TARGET_ARCHITECTURE {
+                format!("RUN cargo build{release_flag}
+# install the project binary with the given architecture.
+RUN cargo install --target {architecture} --path .
+
+# copy the binary from the builder, leaving the build environment.
+FROM scratch
+COPY --from=builder /usr/local/cargo/bin/{app_name} .
+CMD [\"./{app_name}\", \"0.0.0.0:{container_port}\"]",
+                 architecture=architecture,
+                 release_flag=RELEASE_FLAG,
+                 app_name=app_name,
+                 container_port=CONTAINER_PORT
+                )
+            } else {
+                format!(
+                    "CMD cargo run{release_flag} -- 0.0.0.0:{container_port}",
+                    release_flag=RELEASE_FLAG,
+                    container_port=CONTAINER_PORT
+                )
+            }
+        }
     );
     std::fs::write(&dockerfile_path, docker_file)?;
     std::fs::write(&tar_path, project_tar)?;
