@@ -26,9 +26,11 @@ type ImageTag = String;
 pub const CONTAINER_PORT: i32 = 5678;
 pub const SERVICE_PORT: i32 = 5678;
 pub const EXTERNAL_PORT: i32 = 80;
-pub const TARGET_ARCHITECTURE: Option<&str> = Some("x86_64-unknown-linux-musl");
-// ^ todo: let the user set this to enable multi-step builds, or by default ship the source
-// code and run with cargo so that the build can be compiled on the fly.
+pub const TARGET_ARCHITECTURE: Option<&str> = None;
+// ^ todo: we want the user to be able to specify something like `Some("x86_64-unknown-linux-musl")`
+//   during config, but right now that doesn't work because we are relying on super unstable
+//   span features to extract functions into services. When we can enable statically linked
+//   targets, we can use the multi-stage build path and significantly reduce the size.
 
 /// `K8s` is the interface for turning rust functions into autoscaling microservices
 /// using turbolift. It requires docker and kubernetes / kubectl to already be setup on the
