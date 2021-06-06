@@ -348,7 +348,7 @@ RUN cat {tar_file_name} | tar xvf -
 # enter into unpacked source directory
 WORKDIR {function_name}
 
-# build and run project
+# build and run according to compilation scheme
 ENV RUSTFLAGS='--cfg procmacro2_semver_exempt'
 {compilation_scheme}",
         function_name=function_name,
@@ -357,6 +357,7 @@ ENV RUSTFLAGS='--cfg procmacro2_semver_exempt'
             if let Some(architecture) = TARGET_ARCHITECTURE {
                 format!("RUN cargo build{release_flag}
 # install the project binary with the given architecture.
+RUN rustup target add {architecture}
 RUN cargo install --target {architecture} --path .
 
 # copy the binary from the builder, leaving the build environment.
