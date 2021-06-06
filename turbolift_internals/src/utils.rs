@@ -18,3 +18,11 @@ pub const RELEASE_FLAG: &str = {
         ""
     }
 };
+
+pub const DEBUG_FLAG: &str = {
+    if IS_RELEASE {
+        ""
+    } else {
+        " --debug"
+    }
+};

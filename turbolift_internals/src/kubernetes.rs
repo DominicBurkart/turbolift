@@ -15,7 +15,7 @@ use url::Url;
 use crate::distributed_platform::{
     ArgsString, DistributionPlatform, DistributionResult, JsonResponse,
 };
-use crate::utils::RELEASE_FLAG;
+use crate::utils::{DEBUG_FLAG, RELEASE_FLAG};
 use crate::CACHE_PATH;
 use std::io::Write;
 use uuid::Uuid;
@@ -359,14 +359,14 @@ ENV RUSTFLAGS='--cfg procmacro2_semver_exempt'
             if let Some(architecture) = TARGET_ARCHITECTURE {
                 format!("# install the project binary with the given architecture.
 RUN rustup target add {architecture}
-RUN cargo install{release_flag} --target {architecture} --path .
+RUN cargo install{debug_flag} --target {architecture} --path .
 
 # copy the binary from the builder, leaving the build environment.
 FROM scratch
 COPY --from=builder /usr/local/cargo/bin/{function_name} .
 CMD [\"./{function_name}\", \"0.0.0.0:{container_port}\"]",
                  architecture=architecture,
-                 release_flag=RELEASE_FLAG,
+                 debug_flag=DEBUG_FLAG,
                  function_name=function_name,
                  container_port=CONTAINER_PORT
                 )
