@@ -32,8 +32,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let untyped_params = extract_function::to_untyped_params(typed_params.clone());
     let untyped_params_tokens = untyped_params.to_token_stream();
     let params_as_path = extract_function::to_path_params(untyped_params.clone());
-    let wrapper_route = format!("/{}/{}", &original_target_function_name, &params_as_path);
-    // ^ todo: make this unique even if multiple functions with the same name are distributed at the same time
     let param_types = extract_function::to_param_types(typed_params.clone());
     let params_vec = extract_function::params_json_vec(untyped_params.clone());
     let result_type = extract_function::get_result_type(&signature.output);
@@ -56,7 +54,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         #dummy_function
         #target_function
 
-        #[get(#wrapper_route)]
+        #[get(#params_as_path)]
         #[turbolift::tracing::instrument]
         async fn turbolift_wrapper(web::Path((#untyped_params_tokens)): web::Path<(#param_types)>) -> Result<HttpResponse> {
             println!("in the wappa");
@@ -239,7 +237,6 @@ pub fn on(_distribution_platform: TokenStream, function_: TokenStream) -> TokenS
         #[turbolift::tracing::instrument]
         async fn #original_target_function_ident(#typed_params) -> turbolift::DistributionResult<#output_type> {
             #wrapped_original_function
-            println!("wuuuh in funcypoo: {}", wrapped_function(#untyped_params));
             Ok(wrapped_function(#untyped_params))
         }
     };

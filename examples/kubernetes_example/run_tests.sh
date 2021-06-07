@@ -14,6 +14,10 @@ printf "\n📍 running non-distributed tests\n"
 . ./run_non_distributed_tests.sh
 echo "non-distributed tests completed."
 
+printf "\n🚽 deleting target folder to save space in CI\n"
+rm -r ./target
+echo "target folder deleted"
+
 printf "\n👷 setting up cluster with custom ingress-compatible config\n"
 cat <<EOF | kind create cluster --config=-
 kind: Cluster
@@ -51,6 +55,10 @@ echo "🚪 ingress ready."
 printf "\n🤸‍ run distributed tests\n"
 . ./run_distributed_tests.sh
 echo "🤸 distributed tests completed."
+
+printf "\n🚽 deleting target folder to save space in CI\n"
+rm -r ./target
+echo "target folder deleted"
 
 printf "\n📍 re-run non-distributed tests\n"
 . ./run_non_distributed_tests.sh
