@@ -189,7 +189,7 @@ impl DistributionPlatform for K8s {
                         "http": {
                             "paths": [
                                 {
-                                    "path": format!("/{}", app_name),
+                                    "path": format!("/{}/{}", app_name, function_name),
                                     "pathType": "Prefix",
                                     "backend": {
                                         "service" : {
@@ -245,7 +245,10 @@ impl DistributionPlatform for K8s {
         //     .next()
         //     .expect("no node port assigned to service");
         // let service_ip = format!("http://{}", node_ip, node_port);
-        let service_ip = format!("http://localhost:{}/{}/", EXTERNAL_PORT, app_name);
+        let service_ip = format!(
+            "http://localhost:{}/{}/{}/",
+            EXTERNAL_PORT, app_name, function_name
+        );
         println!("generated service_ip: {}", service_ip.as_str());
 
         // todo make sure that the pod and service were correctly started before returning

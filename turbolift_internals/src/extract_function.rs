@@ -94,7 +94,7 @@ pub fn to_path_params(untyped_params: UntypedParams) -> String {
         .map(|pat| open_bracket.to_string() + &pat.into_token_stream().to_string() + &close_bracket)
         .collect();
 
-    format!("/{}", path_format.join("/"))
+    path_format.join("/")
 }
 
 #[tracing::instrument]
