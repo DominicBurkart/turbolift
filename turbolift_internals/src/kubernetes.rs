@@ -189,7 +189,7 @@ impl DistributionPlatform for K8s {
                         "http": {
                             "paths": [
                                 {
-                                    "path": format!("/{}/{}", app_name, function_name),
+                                    "path": format!("/{}", app_name),
                                     "pathType": "Prefix",
                                     "backend": {
                                         "service" : {
@@ -278,7 +278,6 @@ impl DistributionPlatform for K8s {
 
         self.fn_names_to_services
             .insert(function_name.to_string(), Url::from_str(&service_ip)?);
-        // todo handle deleting the relevant service and deployment for each distributed function.
 
         println!("returning from declare");
         Ok(())
