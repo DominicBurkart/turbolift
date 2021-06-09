@@ -295,7 +295,7 @@ impl DistributionPlatform for K8s {
         let args = format!("./{}", params);
         let query_url = service_base_url.join(&args)?;
         tracing::info!(url = query_url.as_str(), "sending dispatch request");
-        println!("sending dispatch request");
+        println!("sending dispatch request to {}", query_url.as_str());
         Ok(self
             .request_client
             .get(query_url)

@@ -103,6 +103,7 @@ impl DistributionPlatform for LocalQueue {
         let query_url = address_and_port.join(&prefixed_params)?;
 
         tracing::info!("sending dispatch request");
+        println!("sending dispatch request to {}", query_url.as_str());
         let resp = Ok(self
             .request_client
             .get(query_url)
