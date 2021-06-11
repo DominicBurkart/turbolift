@@ -99,7 +99,7 @@ impl DistributionPlatform for LocalQueue {
         };
 
         // request from server
-        let prefixed_params = "./".to_string() + function_name + "/" + &params;
+        let prefixed_params = "./".to_string() + function_name + "/empty-uuid/" + &params;
         let query_url = address_and_port.join(&prefixed_params)?;
 
         tracing::info!("sending dispatch request");

@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote as q;
 
 use turbolift_internals::extract_function;
@@ -14,6 +14,8 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     use std::str::FromStr;
 
     use turbolift_internals::{build_project, CACHE_PATH};
+
+    const RUN_ID_NAME: &str = "_turbolift_run_id";
 
     // convert proc_macro::TokenStream to proc_macro2::TokenStream
     let distribution_platform = TokenStream2::from(distribution_platform_);
@@ -30,10 +32,34 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let function_name_string = function_name.to_string();
     let typed_params = signature.inputs;
     let untyped_params = extract_function::to_untyped_params(typed_params.clone());
+    let mut untyped_params_with_run_id = untyped_params.clone();
+    // we need to prepend a variable for the run id, since it's in the URL.
+    untyped_params_with_run_id.insert(
+        0,
+        Box::new(syn::Pat::Ident(syn::PatIdent {
+            attrs: vec![],
+            by_ref: None,
+            mutability: None,
+            ident: Ident::new(RUN_ID_NAME, Span::call_site()),
+            subpat: None,
+        })),
+    );
+    let untyped_params_tokens_with_run_id = untyped_params_with_run_id.to_token_stream();
     let untyped_params_tokens = untyped_params.to_token_stream();
     let params_as_path = extract_function::to_path_params(untyped_params.clone());
-    let wrapper_route = format!("/{}/{}", &original_target_function_name, &params_as_path);
-    let param_types = extract_function::to_param_types(typed_params.clone());
+    let wrapper_route = format!(
+        "{}/{{{}}}/{}",
+        original_target_function_name, RUN_ID_NAME, &params_as_path
+    );
+    let mut param_types = extract_function::to_param_types(typed_params.clone());
+    // we need to prepend a type for the run id added to the wrapper route
+    param_types.insert(
+        0,
+        Box::new(syn::Type::Verbatim(
+            str::parse::<TokenStream2>("String")
+                .expect("could not parse \"String\" as a tokenstream"),
+        )),
+    );
     let params_vec = extract_function::params_json_vec(untyped_params.clone());
     let result_type = extract_function::get_result_type(&signature.output);
     let dummy_function = extract_function::make_dummy_function(
@@ -57,8 +83,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
         #[get(#wrapper_route)]
         #[turbolift::tracing::instrument]
-        async fn turbolift_wrapper(web::Path((#untyped_params_tokens)): web::Path<(#param_types)>) -> Result<HttpResponse> {
-            println!("in the wappa");
+        async fn turbolift_wrapper(web::Path((#untyped_params_tokens_with_run_id)): web::Path<(#param_types)>) -> Result<HttpResponse> {
             Ok(
                 HttpResponse::Ok()
                     .json(#function_name(#untyped_params_tokens))
@@ -68,7 +93,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         #[actix_web::main]
         #[turbolift::tracing::instrument]
         async fn main() -> std::io::Result<()> {
-            use actix_web::{App, HttpServer};
+            use actix_web::{App, HttpServer, HttpRequest, web};
 
             let args: Vec<String> = std::env::args().collect();
             let ip_and_port = &args[1];
@@ -78,6 +103,15 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                     App::new()
                         .service(
                             turbolift_wrapper
+                        )
+                        .default_service(
+                            web::get()
+                                .to(
+                                    |req: HttpRequest|
+                                        HttpResponse::NotFound().body(
+                                            format!("endpoint not found: {}", req.uri())
+                                        )
+                                )
                         )
             )
             .bind(ip_and_port)?
@@ -220,8 +254,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 #[cfg(not(feature = "distributed"))]
 #[proc_macro_attribute]
 pub fn on(_distribution_platform: TokenStream, function_: TokenStream) -> TokenStream {
-    use proc_macro2::{Ident, Span};
-
     // convert proc_macro::TokenStream to proc_macro2::TokenStream
     let function = TokenStream2::from(function_);
     let mut wrapped_original_function = extract_function::get_fn_item(function);

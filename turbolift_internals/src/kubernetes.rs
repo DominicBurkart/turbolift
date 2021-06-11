@@ -95,11 +95,7 @@ impl DistributionPlatform for K8s {
         let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
 
         // generate image & push
-        let app_name = format!(
-            "{}-{}",
-            sanitize_function_name(function_name),
-            run_id.as_u128()
-        );
+        let app_name = format!("{}-{}", sanitize_function_name(function_name), run_id);
         let container_name = format!("{}-app", app_name);
         let deployment_name = format!("{}-deployment", app_name);
         let service_name = format!("{}-service", app_name);
@@ -189,7 +185,7 @@ impl DistributionPlatform for K8s {
                         "http": {
                             "paths": [
                                 {
-                                    "path": format!("/{}", app_name),
+                                    "path": format!("/{}/{}", function_name, run_id),
                                     "pathType": "Prefix",
                                     "backend": {
                                         "service" : {
@@ -247,7 +243,7 @@ impl DistributionPlatform for K8s {
         // let service_ip = format!("http://{}", node_ip, node_port);
         let service_ip = format!(
             "http://localhost:{}/{}/{}/",
-            EXTERNAL_PORT, app_name, function_name
+            EXTERNAL_PORT, function_name, run_id
         );
         println!("generated service_ip: {}", service_ip.as_str());
 
@@ -374,7 +370,8 @@ CMD [\"./{function_name}\", \"0.0.0.0:{container_port}\"]",
                 )
             } else {
                 format!(
-                    "CMD cargo run{release_flag} -- 0.0.0.0:{container_port}",
+                    "RUN cargo build{release_flag}
+                     CMD cargo run{release_flag} -- 0.0.0.0:{container_port}",
                     release_flag=RELEASE_FLAG,
                     container_port=CONTAINER_PORT
                 )
