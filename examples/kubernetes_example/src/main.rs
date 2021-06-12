@@ -11,10 +11,28 @@ use tracing_subscriber;
 use turbolift::kubernetes::K8s;
 use turbolift::on;
 
+/// instantiate the global cluster manager
 lazy_static! {
-    static ref K8S: Mutex<K8s> = Mutex::new(K8s::with_max_replicas(2));
+    static ref K8S: Mutex<K8s> = Mutex::new(K8s::with_deploy_function_and_max_replicas(
+        Box::new(load_container_into_kind),
+        2
+    ));
 }
 
+/// The application writer is responsible for placing
+/// images where your cluster can access them. The
+/// K8s constructor has a parameter which takes
+/// a function that is called after the container is
+/// built, so that the container may be added to a
+/// specific registry or otherwise be made available.
+fn load_container_into_kind(tag: &str) -> anyhow::Result<&str> {
+    std::process::Command::new("kind")
+        .args(format!("load docker-image {}", tag).as_str().split(' '))
+        .status()?;
+    Ok(tag)
+}
+
+/// This is the function we want to distribute!
 #[on(K8S)]
 fn square(u: u64) -> u64 {
     u * u

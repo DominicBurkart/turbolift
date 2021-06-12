@@ -3,6 +3,7 @@ use std::process::{Command, Stdio};
 use std::str::FromStr;
 
 use async_trait::async_trait;
+use derivative::Derivative;
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::Service;
 use kube::api::{Api, PostParams};
@@ -22,6 +23,7 @@ use uuid::Uuid;
 
 const TURBOLIFT_K8S_NAMESPACE: &str = "default";
 type ImageTag = String;
+type DeployContainerFunction = Box<dyn Fn(&str) -> anyhow::Result<&str> + Send + 'static>;
 
 pub const CONTAINER_PORT: i32 = 5678;
 pub const SERVICE_PORT: i32 = 5678;
@@ -32,45 +34,55 @@ pub const TARGET_ARCHITECTURE: Option<&str> = None;
 //   span features to extract functions into services. When we can enable statically linked
 //   targets, we can use the multi-stage build path and significantly reduce the size.
 
+#[derive(Derivative)]
+#[derivative(Debug)]
 /// `K8s` is the interface for turning rust functions into autoscaling microservices
 /// using turbolift. It requires docker and kubernetes / kubectl to already be setup on the
 /// device at runtime.
 ///
-/// Access to the kubernetes cluster must be inferrable from the env variables at runtime.
-#[derive(Debug)]
+/// Access to the kubernetes cluster must be inferrable from the env variables at runtime
+/// per kube-rs's
+/// [try_default()](https://docs.rs/kube/0.56.0/kube/client/struct.Client.html#method.try_default).
 pub struct K8s {
     max_scale_n: u32,
     fn_names_to_services: HashMap<String, Url>,
     request_client: reqwest::Client,
+
+    #[derivative(Debug = "ignore")]
+    /// A function called after the image is built locally via docker. deploy_container
+    /// receives the tag for the local image (accessible in docker) and is responsible
+    /// for making said image accessible to the target cluster. The output of
+    /// deploy_container is the tag that Kubernetes can use to refer to and access the
+    /// image throughout the cluster.
+    ///
+    /// Some examples of how this function can be implemented: uploading the image to
+    /// the cluster's private registry, uploading the image publicly to docker hub
+    /// (if the image is not sensitive), loading the image into KinD in tests.
+    deploy_container: DeployContainerFunction,
 }
 
 impl K8s {
-    /// returns a K8s object that does not perform autoscaling.
-    #[tracing::instrument]
-    pub fn new() -> K8s {
-        K8s::with_max_replicas(1)
-    }
-
     /// returns a K8s object. If max is equal to 1, then autoscaling
     /// is not enabled. Otherwise, autoscale is automatically activated
     /// with cluster defaults and a max number of replicas *per distributed
     /// function* of `max`. Panics if `max` < 1.
-    #[tracing::instrument]
-    pub fn with_max_replicas(max: u32) -> K8s {
+    ///
+    /// The deploy container function is used for making containers accessible
+    /// to the cluster. See [`K8s::deploy_container`].
+    #[tracing::instrument(skip(deploy_container))]
+    pub fn with_deploy_function_and_max_replicas(
+        deploy_container: DeployContainerFunction,
+        max: u32,
+    ) -> K8s {
         if max < 1 {
             panic!("max < 1 while instantiating k8s (value: {})", max)
         }
         K8s {
+            deploy_container,
             max_scale_n: max,
             fn_names_to_services: HashMap::new(),
             request_client: reqwest::Client::new(),
         }
-    }
-}
-
-impl Default for K8s {
-    fn default() -> Self {
-        K8s::new()
     }
 }
 
@@ -100,7 +112,7 @@ impl DistributionPlatform for K8s {
         let deployment_name = format!("{}-deployment", app_name);
         let service_name = format!("{}-service", app_name);
         let ingress_name = format!("{}-ingress", app_name);
-        let tag_in_reg = make_image(&app_name, function_name, project_tar)?;
+        let tag_in_reg = make_image(self, &app_name, function_name, project_tar)?;
 
         println!("image made. making deployment and service names.");
         println!("made service_name");
@@ -269,7 +281,7 @@ impl DistributionPlatform for K8s {
         //     }
         // }
 
-        sleep(Duration::from_secs(600)).await;
+        sleep(Duration::from_secs(90)).await;
         // todo implement the check on whether the service is running / pod failed
 
         self.fn_names_to_services
@@ -314,7 +326,12 @@ lazy_static! {
 }
 
 #[tracing::instrument(skip(project_tar))]
-fn make_image(app_name: &str, function_name: &str, project_tar: &[u8]) -> anyhow::Result<ImageTag> {
+fn make_image(
+    k8s: &K8s,
+    app_name: &str,
+    function_name: &str,
+    project_tar: &[u8],
+) -> anyhow::Result<ImageTag> {
     // todo: we should add some random stuff to the function_name to avoid collisions and figure
     // out when to overwrite vs not.
 
@@ -398,37 +415,6 @@ CMD [\"./{function_name}\", \"0.0.0.0:{container_port}\"]",
             return Err(anyhow::anyhow!("docker image build failure"));
         }
 
-        // let image_tag = format!(
-        //     "localhost:{}/{}",
-        //     registry_url.port().unwrap(),
-        //     function_name
-        // );
-
-        println!("made image tag");
-
-        // tag image
-        // let tag_args = format!("image tag {} {}", function_name, function_name);
-        // let tag_result = Command::new("docker")
-        //     .args(tag_args.as_str().split(' '))
-        //     .status()?;
-        // if !tag_result.success() {
-        //     return Err(anyhow::anyhow!("docker image tag failure"));
-        // }
-        // tracing::info!("image tagged");
-
-        // push image to local repo
-        // let image_tag = format!("dominicburkart/{}:latest", function_name.clone());
-        // let push_status = Command::new("docker")
-        //     .arg("push")
-        //     .arg(image_tag.clone())
-        //     .status()?;
-        // tracing::info!("docker push command did not explode");
-        // if !push_status.success() {
-        //     return Err(anyhow::anyhow!("docker image push failure"));
-        // }
-
-        // println!("haha >:D {}", image_tag);
-
         Ok(unique_tag.clone())
     })();
     println!("removing build dir");
@@ -436,15 +422,7 @@ CMD [\"./{function_name}\", \"0.0.0.0:{container_port}\"]",
     std::fs::remove_dir_all(build_dir_canonical)?;
     println!("returning result");
 
-    Command::new("kind")
-        .args(
-            format!("load docker-image {}", unique_tag)
-                .as_str()
-                .split(' '),
-        )
-        .status()?;
-    // todo ^ temp fix while debugging kind
-    result
+    result.and((k8s.deploy_container)(unique_tag.as_str()).map(|s| s.to_string()))
 }
 
 impl Drop for K8s {

@@ -34,6 +34,7 @@ regex = "1"
 tracing = {version="0.1", features=["attributes"]}
 tracing-futures = "0.2.4"
 uuid = { version="0.8", features=["v4"] }
+derivative = "2.2.0"
 
 # kubernetes-specific requirements
 kube = "0.51.0"

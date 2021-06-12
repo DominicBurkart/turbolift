@@ -13,6 +13,7 @@ tokio = {version="1", features=["full"]}
 lazy_static = "1"
 futures = "0.3"
 cute = "0.3"
+anyhow = "1.0.41"
 turbolift = { path="../../" }
 
 # for printing out tracing
