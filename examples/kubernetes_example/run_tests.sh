@@ -8,40 +8,14 @@ set -e
 echo "🚡 running turbolift tests..."
 
 printf "\n😤 deleting current cluster if it exists\n"
-kind delete cluster
+kind delete cluster # make sure we don't need the cluster when running locally
 
 printf "\n📍 running non-distributed tests\n"
 RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test -- --nocapture
 RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run
 echo "non-distributed tests completed."
 
-printf "\n👷 setting up cluster with custom ingress-compatible config\n"
-cat <<EOF | kind create cluster --config=-
-kind: Cluster
-apiVersion: kind.x-k8s.io/v1alpha4
-nodes:
-- role: control-plane
-  kubeadmConfigPatches:
-  - |
-    kind: InitConfiguration
-    nodeRegistration:
-      kubeletExtraArgs:
-        node-labels: "ingress-ready=true"
-  extraPortMappings:
-  - containerPort: 80
-    hostPort: 80
-    protocol: TCP
-  - containerPort: 443
-    hostPort: 443
-    protocol: TCP
-EOF
-kubectl cluster-info --context kind-kind
-echo "cluster initialized."
-
-printf "\n🚪 adding ingress\n"
-. setup_ingress.sh
-
-echo "🚪 ingress ready."
+. setup_cluster.sh
 
 printf "\n🤸‍ run distributed tests\n"
 RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test --features distributed -- --nocapture

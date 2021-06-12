@@ -57,7 +57,7 @@ jobs:
       - name: run tests
         run: |
           cd turbolift/examples/kubernetes_example
-          sh setup_ingress.sh
+          sh setup_cluster.sh
           RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test --features distributed -- --nocapture
 
   kubernetes_example_distributed_run:
@@ -75,5 +75,5 @@ jobs:
       - name: run tests
         run: |
           cd turbolift/examples/kubernetes_example
-          sh setup_ingress.sh
+          sh setup_cluster.sh
           RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --features distributed
