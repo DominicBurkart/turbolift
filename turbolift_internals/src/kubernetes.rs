@@ -238,8 +238,6 @@ impl DistributionPlatform for K8s {
             EXTERNAL_PORT, function_name, run_id
         );
 
-        // todo make sure that the pod and service were correctly started before returning
-
         if self.max_scale_n > 1 {
             // set autoscale
             let scale_args = format!(
@@ -261,6 +259,7 @@ impl DistributionPlatform for K8s {
         }
 
         sleep(Duration::from_secs(90)).await;
+        // todo make sure that the pod and service were correctly started before returning
         // todo implement the check on whether the service is running / pod failed
 
         self.fn_names_to_services
