@@ -7,4 +7,4 @@ printf "\n⏱️ waiting for ingress controller to be ready...\n"
 kubectl wait --namespace ingress-nginx \
   --for=condition=ready pod \
   --selector=app.kubernetes.io/component=controller \
-  --timeout=30m
+  --timeout=50m
