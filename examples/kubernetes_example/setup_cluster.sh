@@ -38,6 +38,3 @@ kubectl wait --namespace ingress-nginx \
   --selector=app.kubernetes.io/component=controller \
   --timeout=30m
 echo "🚪 ingress ready."
-
-kubectl describe pods -A
-kubectl logs --all-containers=true -l app.kubernetes.io/component=controller
