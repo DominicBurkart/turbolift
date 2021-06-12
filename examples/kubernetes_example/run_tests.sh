@@ -11,12 +11,9 @@ printf "\n😤 deleting current cluster if it exists\n"
 kind delete cluster
 
 printf "\n📍 running non-distributed tests\n"
-. ./run_non_distributed_tests.sh
+RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test -- --nocapture
+RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run
 echo "non-distributed tests completed."
-
-printf "\n🚽 deleting target folder to save space in CI\n"
-rm -r ./target
-echo "target folder deleted"
 
 printf "\n👷 setting up cluster with custom ingress-compatible config\n"
 cat <<EOF | kind create cluster --config=-
@@ -53,15 +50,13 @@ kubectl wait --namespace ingress-nginx \
 echo "🚪 ingress ready."
 
 printf "\n🤸‍ run distributed tests\n"
-. ./run_distributed_tests.sh
+RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test --features distributed -- --nocapture
+RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --features distributed
 echo "🤸 distributed tests completed."
 
-printf "\n🚽 deleting target folder to save space in CI\n"
-rm -r ./target
-echo "target folder deleted"
-
 printf "\n📍 re-run non-distributed tests\n"
-. ./run_non_distributed_tests.sh
+RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test -- --nocapture
+RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run
 echo "📍 non-distributed tests completed."
 
 printf "\n🚡turbolift tests complete.\n"
