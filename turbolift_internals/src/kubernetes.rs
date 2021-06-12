@@ -114,10 +114,6 @@ impl DistributionPlatform for K8s {
         let ingress_name = format!("{}-ingress", app_name);
         let tag_in_reg = make_image(self, &app_name, function_name, project_tar)?;
 
-        println!("image made. making deployment and service names.");
-        println!("made service_name");
-        println!("made app_name and container_name");
-
         // make deployment
         let deployment_json = serde_json::json!({
             "apiVersion": "apps/v1",
@@ -150,14 +146,11 @@ impl DistributionPlatform for K8s {
                 }
             }
         });
-        println!("deployment_json generated");
         let deployment = serde_json::from_value(deployment_json)?;
-        println!("deployment generated");
         deployments
             .create(&PostParams::default(), &deployment)
             .compat()
             .await?;
-        println!("created deployment");
 
         // make service pointing to deployment
         let service_json = serde_json::json!({
@@ -177,12 +170,10 @@ impl DistributionPlatform for K8s {
             }
         });
         let service = serde_json::from_value(service_json)?;
-        println!("deployment generated");
         services
             .create(&PostParams::default(), &service)
             .compat()
             .await?;
-        println!("created service");
 
         // make ingress pointing to service
         let ingress = serde_json::json!({
@@ -231,17 +222,6 @@ impl DistributionPlatform for K8s {
             )
         }
 
-        let node_ip = {
-            // let stdout = Command::new("kubectl")
-            // .args("get nodes --selector=kubernetes.io/role!=master -o jsonpath={.items[*].status.addresses[?\\(@.type==\\\"InternalIP\\\"\\)].address}".split(' '))
-            // .output()
-            // .expect("error finding node ip")
-            // .stdout;
-            // String::from_utf8(stdout).expect("could not parse local node ip")
-            "localhost".to_string()
-        };
-        println!("found node ip: {}", node_ip.as_str());
-
         // let node_port: i32 = 5000;
         // let node_port = service
         //     .spec
@@ -257,7 +237,6 @@ impl DistributionPlatform for K8s {
             "http://localhost:{}/{}/{}/",
             EXTERNAL_PORT, function_name, run_id
         );
-        println!("generated service_ip: {}", service_ip.as_str());
 
         // todo make sure that the pod and service were correctly started before returning
 
@@ -286,8 +265,6 @@ impl DistributionPlatform for K8s {
 
         self.fn_names_to_services
             .insert(function_name.to_string(), Url::from_str(&service_ip)?);
-
-        println!("returning from declare");
         Ok(())
     }
 
@@ -302,7 +279,6 @@ impl DistributionPlatform for K8s {
         let args = format!("./{}", params);
         let query_url = service_base_url.join(&args)?;
         tracing::info!(url = query_url.as_str(), "sending dispatch request");
-        println!("sending dispatch request to {}", query_url.as_str());
         Ok(self
             .request_client
             .get(query_url)
@@ -316,7 +292,6 @@ impl DistributionPlatform for K8s {
 
     #[tracing::instrument]
     fn has_declared(&self, fn_name: &str) -> bool {
-        println!("in has_declared");
         self.fn_names_to_services.contains_key(fn_name)
     }
 }
@@ -417,10 +392,8 @@ CMD [\"./{function_name}\", \"0.0.0.0:{container_port}\"]",
 
         Ok(unique_tag.clone())
     })();
-    println!("removing build dir");
     // always remove the build directory, even on build error
     std::fs::remove_dir_all(build_dir_canonical)?;
-    println!("returning result");
 
     result.and((k8s.deploy_container)(unique_tag.as_str()).map(|s| s.to_string()))
 }

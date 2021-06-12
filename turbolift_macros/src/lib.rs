@@ -184,14 +184,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         let tar = extract_function::make_compressed_proj_src(&function_cache_proj_path);
         let tar_file = CACHE_PATH.join(original_target_function_name.clone() + "_source.tar");
         fs::write(&tar_file, tar).expect("failure writing bin");
-        println!(
-            "tar file location: {}",
-            tar_file
-                .canonicalize()
-                .expect("error canonicalizing tar file location")
-                .to_str()
-                .unwrap()
-        );
         TokenStream2::from_str(&format!(
             "std::include_bytes!(\"{}\")",
             tar_file
@@ -202,7 +194,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         ))
         .expect("syntax error while embedding project tar.")
     };
-    println!("project_source_binary complete");
 
     // generate API function for the microservice
     let declare_and_dispatch = q! {
@@ -218,24 +209,16 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             use turbolift::tokio_compat_02::FutureExt;
             use turbolift::uuid::Uuid;
 
-            println!("in original target function");
-
             let mut platform = #distribution_platform.lock().await;
 
-            println!("platform acquired");
-
             if !platform.has_declared(#original_target_function_name) {
-                println!("launching declare");
                 platform
                     .declare(#original_target_function_name, Uuid::new_v4(), #project_source_binary)
                     .compat()
                     .await?;
-                println!("declare completed");
             }
 
             let params = #params_vec.join("/");
-
-            println!("launching dispatch");
             let resp_string = platform
                 .dispatch(
                     #original_target_function_name,
@@ -243,8 +226,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                 )
                 .compat()
                 .await?;
-            println!("dispatch completed");
-            println!("resp_string: {}", &resp_string);
             Ok(turbolift::serde_json::from_str(&resp_string)?)
         }
     };
