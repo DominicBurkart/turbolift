@@ -222,21 +222,10 @@ impl DistributionPlatform for K8s {
             )
         }
 
-        // let node_port: i32 = 5000;
-        // let node_port = service
-        //     .spec
-        //     .expect("no specification found for service")
-        //     .ports
-        //     .expect("no ports found for service")
-        //     .iter()
-        //     .filter_map(|port| port.node_port)
-        //     .next()
-        //     .expect("no node port assigned to service");
-        // let service_ip = format!("http://{}", node_ip, node_port);
         let ingress_ip = format!(
             "http://localhost:{}/{}/{}/",
             EXTERNAL_PORT, function_name, run_id
-        );
+        ); // we assume for now that the ingress is exposed on localhost
 
         if self.max_scale_n > 1 {
             // set autoscale
