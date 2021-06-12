@@ -45,7 +45,7 @@ pub const TARGET_ARCHITECTURE: Option<&str> = None;
 /// [try_default()](https://docs.rs/kube/0.56.0/kube/client/struct.Client.html#method.try_default).
 pub struct K8s {
     max_scale_n: u32,
-    fn_names_to_services: HashMap<String, Url>,
+    fn_names_to_ips: HashMap<String, Url>,
     request_client: reqwest::Client,
 
     #[derivative(Debug = "ignore")]
@@ -80,7 +80,7 @@ impl K8s {
         K8s {
             deploy_container,
             max_scale_n: max,
-            fn_names_to_services: HashMap::new(),
+            fn_names_to_ips: HashMap::new(),
             request_client: reqwest::Client::new(),
         }
     }
@@ -233,7 +233,7 @@ impl DistributionPlatform for K8s {
         //     .next()
         //     .expect("no node port assigned to service");
         // let service_ip = format!("http://{}", node_ip, node_port);
-        let service_ip = format!(
+        let ingress_ip = format!(
             "http://localhost:{}/{}/{}/",
             EXTERNAL_PORT, function_name, run_id
         );
@@ -262,8 +262,8 @@ impl DistributionPlatform for K8s {
         // todo make sure that the pod and service were correctly started before returning
         // todo implement the check on whether the service is running / pod failed
 
-        self.fn_names_to_services
-            .insert(function_name.to_string(), Url::from_str(&service_ip)?);
+        self.fn_names_to_ips
+            .insert(function_name.to_string(), Url::from_str(&ingress_ip)?);
         Ok(())
     }
 
@@ -274,7 +274,7 @@ impl DistributionPlatform for K8s {
         params: ArgsString,
     ) -> DistributionResult<JsonResponse> {
         // request from server
-        let service_base_url = self.fn_names_to_services.get(function_name).unwrap();
+        let service_base_url = self.fn_names_to_ips.get(function_name).unwrap();
         let args = format!("./{}", params);
         let query_url = service_base_url.join(&args)?;
         tracing::info!(url = query_url.as_str(), "sending dispatch request");
@@ -291,7 +291,7 @@ impl DistributionPlatform for K8s {
 
     #[tracing::instrument]
     fn has_declared(&self, fn_name: &str) -> bool {
-        self.fn_names_to_services.contains_key(fn_name)
+        self.fn_names_to_ips.contains_key(fn_name)
     }
 }
 
