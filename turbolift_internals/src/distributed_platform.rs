@@ -11,7 +11,7 @@ pub type JsonResponse = String;
 #[async_trait]
 pub trait DistributionPlatform {
     /// declare a function
-    fn declare(&mut self, function_name: &str, project_tar: &[u8]);
+    async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()>;
 
     // dispatch params to a function
     async fn dispatch(
@@ -19,4 +19,6 @@ pub trait DistributionPlatform {
         function_name: &str,
         params: ArgsString,
     ) -> DistributionResult<JsonResponse>;
+
+    fn has_declared(&self, fn_name: &str) -> bool;
 }

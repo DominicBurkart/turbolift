@@ -9,9 +9,16 @@ edition = "2018"
 [lib]
 proc-macro = true
 
+[features]
+"distributed" = []
+
 [dependencies]
 quote = "1"
 proc-macro2 = "1"
 fs_extra = "1"
 turbolift_internals = { path="../turbolift_internals" }
 futures = "0.3"
+cached = "0.19"
+tracing = {version="0.1", features=["attributes"]}
+tracing-futures = "0.2.4"
+syn = { version = "1", features=["full"] }

@@ -1,22 +1,26 @@
 [package]
 name = "turbolift"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Dominic Burkart <@DominicBurkart>"]
 edition = "2018"
-description = "WIP"
+description = "Easy distribution interface"
+keywords = ["distribution", "distributed", "kubernetes", "K8s"]
+categories = ["build-utils", "development-tools", "concurrency", "network-programming", "asynchronous"]
 readme = "README.md"
+homepage = "https://dominic.computer/turbolift"
 license = "Hippocratic-2.1"
+repository = "https://github.com/dominicburkart/turbolift/"
 
 [features]
-distributed = ["chrono", "cached", "async-std"]
-service = ["actix-web", "serde_json"]
+distributed = ["chrono", "turbolift_macros/distributed"]
 # todo we can optimize reqs for children with this load
 
 [dependencies]
 turbolift_macros = { path = "./turbolift_macros" }
 turbolift_internals = { path = "./turbolift_internals" }
-async-std = { version = "1.6", optional = true }
 chrono = { version = "0.4", optional = true }
-cached = { version = "0.19", optional = true }
-actix-web = { version = "3", optional = true }
-serde_json = { version = "1", optional = true }
+actix-web = { version = "3" }
+serde_json = { version = "1" }
+tokio-compat-02 = { version = "0.1" }
+tracing = {version="0.1", features=["attributes"]}
+tracing-futures = "0.2.4"

@@ -1,0 +1,79 @@
+name: examples
+
+on:
+  push:
+    branches: master
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  local_queue_example:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: build local queue example
+        run: docker build -f examples/local_queue_example/Dockerfile .
+
+  kubernetes_example_local_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: './turbolift'
+      - name: install rustup and rust nightly
+        run: |
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2020-09-28
+      - name: run tests
+        run: |
+            cd turbolift/examples/kubernetes_example
+            RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test -- --nocapture
+
+  kubernetes_example_local_run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: './turbolift'
+      - name: install rustup and rust nightly
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2020-09-28
+      - name: run tests
+        run: |
+          cd turbolift/examples/kubernetes_example
+          RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run
+
+  kubernetes_example_distributed_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: './turbolift'
+      - name: install rustup and rust nightly
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2020-09-28
+      - uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: "v0.11.0"
+      - name: run tests
+        run: |
+          cd turbolift/examples/kubernetes_example
+          sh setup_cluster.sh
+          RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo test --features distributed -- --nocapture
+
+  kubernetes_example_distributed_run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          path: './turbolift'
+      - name: install rustup and rust nightly
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly-2020-09-28
+      - uses: engineerd/setup-kind@v0.5.0
+        with:
+          version: "v0.11.0"
+      - name: run tests
+        run: |
+          cd turbolift/examples/kubernetes_example
+          sh setup_cluster.sh
+          RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo run --features distributed

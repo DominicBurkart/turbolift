@@ -5,10 +5,11 @@ use std::path::Path;
 pub mod build_project;
 pub mod distributed_platform;
 pub mod extract_function;
-pub mod utils;
-pub mod local_queue;
 pub mod kubernetes;
+pub mod local_queue;
+pub mod utils;
 pub use serde_json;
+pub use uuid;
 
 lazy_static! {
     /// CACHE_PATH is the directory where turbolift stores derived projects,

@@ -1,24 +1,24 @@
-use proc_macro2::TokenStream;
+use std::collections::VecDeque;
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
+use syn::spanned::Spanned;
 use tar::{Archive, Builder};
 
-use syn::export::TokenStream2;
-use syn::spanned::Spanned;
-
 use crate::distributed_platform::DistributionResult;
-use crate::CACHE_PATH;
-use std::collections::VecDeque;
 
 type TypedParams = syn::punctuated::Punctuated<syn::FnArg, syn::Token![,]>;
 type UntypedParams = syn::punctuated::Punctuated<Box<syn::Pat>, syn::Token![,]>;
 type ParamTypes = syn::punctuated::Punctuated<Box<syn::Type>, syn::Token![,]>;
 
-pub fn get_fn_item(function: TokenStream) -> syn::ItemFn {
+const IGNORED_DIRECTORIES: [&str; 3] = ["target", ".git", ".turbolift"];
+
+#[tracing::instrument]
+pub fn get_fn_item(function: TokenStream2) -> syn::ItemFn {
     match syn::parse2(function).unwrap() {
         syn::Item::Fn(fn_item) => fn_item,
         _ => panic!("token stream does not represent function."),
@@ -28,6 +28,7 @@ pub fn get_fn_item(function: TokenStream) -> syn::ItemFn {
 /// wraps any calls to the target function from within its own service with the return type as
 /// if the call was made from outside the service. This is one way to allow compilation while
 /// references to the target function are in the service codebase.
+#[tracing::instrument]
 pub fn make_dummy_function(
     function: syn::ItemFn,
     redirect_fn_name: &str,
@@ -71,6 +72,7 @@ pub fn make_dummy_function(
     }
 }
 
+#[tracing::instrument]
 pub fn to_untyped_params(typed_params: TypedParams) -> UntypedParams {
     typed_params
         .into_iter()
@@ -80,7 +82,9 @@ pub fn to_untyped_params(typed_params: TypedParams) -> UntypedParams {
         })
         .collect()
 }
+
 /// params -> {param1}/{param2}/{param3}[...]
+#[tracing::instrument]
 pub fn to_path_params(untyped_params: UntypedParams) -> String {
     let open_bracket = "{";
     let close_bracket = "}".to_string();
@@ -92,6 +96,7 @@ pub fn to_path_params(untyped_params: UntypedParams) -> String {
     path_format.join("/")
 }
 
+#[tracing::instrument]
 pub fn to_param_types(typed_params: TypedParams) -> ParamTypes {
     typed_params
         .into_iter()
@@ -102,7 +107,8 @@ pub fn to_param_types(typed_params: TypedParams) -> ParamTypes {
         .collect()
 }
 
-pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream {
+#[tracing::instrument]
+pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream2 {
     let punc: Vec<String> = untyped_params
         .into_iter()
         .map(|pat| {
@@ -113,10 +119,11 @@ pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream {
         .collect();
 
     let vec_string = format!("vec![{}]", punc.join(", "));
-    TokenStream::from_str(&vec_string).unwrap()
+    TokenStream2::from_str(&vec_string).unwrap()
 }
 
-pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
+#[tracing::instrument]
+pub fn get_sanitized_file(function: &TokenStream2) -> TokenStream2 {
     let span = function.span();
     let path = span.source_file().path();
     let start_line = match span.start().line {
@@ -150,12 +157,14 @@ pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
     TokenStream2::from_str(&sanitized_string).unwrap()
 }
 
-pub fn unpack_path_params(untyped_params: &UntypedParams) -> TokenStream {
+#[tracing::instrument]
+pub fn unpack_path_params(untyped_params: &UntypedParams) -> TokenStream2 {
     let n_params = untyped_params.len();
     let params: Vec<String> = (0..n_params).map(|i| format!("path.{}", i)).collect();
-    TokenStream::from_str(&params.join(", ")).unwrap()
+    TokenStream2::from_str(&params.join(", ")).unwrap()
 }
 
+#[tracing::instrument]
 pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     let cursor = Cursor::new(Vec::new());
     let mut archive = Builder::new(cursor);
@@ -166,28 +175,24 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
         .map(|entry| (dir.file_name().unwrap().into(), entry))
         .collect(); // ignore read errors
 
-    archive.append_dir(dir.file_name().unwrap(), dir).unwrap();
+    let tar_project_base_dir = dir.file_name().unwrap();
+
+    archive.append_dir(tar_project_base_dir, dir).unwrap();
     while !entries.is_empty() {
         let (entry_parent, entry) = entries.pop_front().unwrap();
-        if entry.file_name().to_str() == Some("target") && entry.metadata().unwrap().is_dir() {
-            // in target directories, only pass release (if it exists)
-            let release_deps = entry.path().join("release/deps");
-            if release_deps.exists() {
-                let path = {
-                    if entry_parent == dir {
-                        PathBuf::from_str("target/release").unwrap()
-                    } else {
-                        entry_parent.join("target").join("release")
-                    }
-                };
-                archive.append_dir_all(path, release_deps).unwrap();
-            }
+        if entry.metadata().unwrap().is_dir()
+            && (IGNORED_DIRECTORIES // todo could there be cases where removing .git messes up a dependency?
+                .contains(&entry.file_name().to_str().unwrap_or("")))
+        {
+            // ignore target and .git repository
         } else {
             let entry_path_with_parent = entry_parent.join(entry.file_name());
             if entry.path().is_dir() {
                 // ^ bug: the metadata on symlinks sometimes say that they are not directories,
                 // so we have to metadata.is_dir() || (metadata.file_type().is_symlink() && entry.path().is_dir() )
-                if CACHE_PATH.file_name().unwrap() != entry.file_name() {
+                if IGNORED_DIRECTORIES.contains(&entry.file_name().to_str().unwrap_or("")) {
+                    // don't include any target or .turbolift directories
+                } else {
                     archive
                         .append_dir(&entry_path_with_parent, entry.path())
                         .unwrap();
@@ -195,10 +200,8 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
                         fs::read_dir(entry.path())
                             .unwrap()
                             .filter_map(Result::ok)
-                            .map(|child| (entry_path_with_parent.clone(), child)),
+                            .map(|child| (entry_parent.join(entry.file_name()), child)),
                     )
-                } else {
-                    // don't include the cache
                 }
             } else {
                 let mut f = fs::File::open(entry.path()).unwrap();
@@ -210,6 +213,7 @@ pub fn make_compressed_proj_src(dir: &Path) -> Vec<u8> {
     archive.into_inner().unwrap().into_inner()
 }
 
+#[tracing::instrument(skip(src))]
 pub fn decompress_proj_src(src: &[u8], dest: &Path) -> DistributionResult<()> {
     let cursor = Cursor::new(src.to_owned());
     let mut archive = Archive::new(cursor);
@@ -217,6 +221,7 @@ pub fn decompress_proj_src(src: &[u8], dest: &Path) -> DistributionResult<()> {
 }
 
 /// assumes input is a function, not a closure.
+#[tracing::instrument]
 pub fn get_result_type(output: &syn::ReturnType) -> TokenStream2 {
     match output {
         syn::ReturnType::Default => TokenStream2::from_str("()").unwrap(),

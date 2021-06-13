@@ -1,11 +1,12 @@
 use proc_macro::TokenStream;
-use proc_macro2::TokenStream as TokenStream2;
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::quote as q;
 
 use turbolift_internals::extract_function;
 
 #[cfg(feature = "distributed")]
 #[proc_macro_attribute]
+#[tracing::instrument]
 pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenStream {
     use quote::{format_ident, ToTokens};
     use std::fs;
@@ -13,6 +14,8 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     use std::str::FromStr;
 
     use turbolift_internals::{build_project, CACHE_PATH};
+
+    const RUN_ID_NAME: &str = "_turbolift_run_id";
 
     // convert proc_macro::TokenStream to proc_macro2::TokenStream
     let distribution_platform = TokenStream2::from(distribution_platform_);
@@ -29,10 +32,34 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let function_name_string = function_name.to_string();
     let typed_params = signature.inputs;
     let untyped_params = extract_function::to_untyped_params(typed_params.clone());
+    let mut untyped_params_with_run_id = untyped_params.clone();
+    // we need to prepend a variable for the run id, since it's in the URL.
+    untyped_params_with_run_id.insert(
+        0,
+        Box::new(syn::Pat::Ident(syn::PatIdent {
+            attrs: vec![],
+            by_ref: None,
+            mutability: None,
+            ident: Ident::new(RUN_ID_NAME, Span::call_site()),
+            subpat: None,
+        })),
+    );
+    let untyped_params_tokens_with_run_id = untyped_params_with_run_id.to_token_stream();
     let untyped_params_tokens = untyped_params.to_token_stream();
     let params_as_path = extract_function::to_path_params(untyped_params.clone());
-    let wrapper_route = "/".to_string() + &original_target_function_name + "/" + &params_as_path;
-    let param_types = extract_function::to_param_types(typed_params.clone());
+    let wrapper_route = format!(
+        "{}/{{{}}}/{}",
+        original_target_function_name, RUN_ID_NAME, &params_as_path
+    );
+    let mut param_types = extract_function::to_param_types(typed_params.clone());
+    // we need to prepend a type for the run id added to the wrapper route
+    param_types.insert(
+        0,
+        Box::new(syn::Type::Verbatim(
+            str::parse::<TokenStream2>("String")
+                .expect("could not parse \"String\" as a tokenstream"),
+        )),
+    );
     let params_vec = extract_function::params_json_vec(untyped_params.clone());
     let result_type = extract_function::get_result_type(&signature.output);
     let dummy_function = extract_function::make_dummy_function(
@@ -47,14 +74,16 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     let sanitized_file = extract_function::get_sanitized_file(&function);
     // todo make code below hygienic in case sanitized_file also imports from actix_web
     let main_file = q! {
-        use turbolift::actix_web::{self, get, web, HttpResponse, Result};
+        use turbolift::actix_web::{self, get, web, HttpResponse, HttpRequest, Result, Responder};
+        use turbolift::tokio_compat_02::FutureExt;
 
         #sanitized_file
         #dummy_function
         #target_function
 
         #[get(#wrapper_route)]
-        async fn turbolift_wrapper(web::Path((#untyped_params_tokens)): web::Path<(#param_types)>) -> Result<HttpResponse> {
+        #[turbolift::tracing::instrument]
+        async fn turbolift_wrapper(web::Path((#untyped_params_tokens_with_run_id)): web::Path<(#param_types)>) -> Result<HttpResponse> {
             Ok(
                 HttpResponse::Ok()
                     .json(#function_name(#untyped_params_tokens))
@@ -62,20 +91,32 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         }
 
         #[actix_web::main]
+        #[turbolift::tracing::instrument]
         async fn main() -> std::io::Result<()> {
-            use actix_web::{App, HttpServer};
+            use actix_web::{App, HttpServer, HttpRequest, web};
 
             let args: Vec<String> = std::env::args().collect();
             let ip_and_port = &args[1];
+            turbolift::tracing::info!("service main() started. ip_and_port parsed.");
             HttpServer::new(
                 ||
                     App::new()
                         .service(
                             turbolift_wrapper
                         )
+                        .default_service(
+                            web::get()
+                                .to(
+                                    |req: HttpRequest|
+                                        HttpResponse::NotFound().body(
+                                            format!("endpoint not found: {}", req.uri())
+                                        )
+                                )
+                        )
             )
             .bind(ip_and_port)?
             .run()
+            .compat()
             .await
         }
     };
@@ -88,9 +129,10 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         .map(|res| res.expect("could not read entry").path())
         .filter(|path| path.file_name() != CACHE_PATH.file_name())
         .filter(
-            |path| path.to_str() != Some("./target"), // todo we could shorten compile time by sharing deps in ./target,
-                                                      // but I didn't have the bandwidth to debug permissions errors caused
-                                                      // by copying all of the compiled lib files.
+            |path| path.to_str() != Some("./target"),
+            // todo we could shorten compile time by sharing deps in ./target,
+            // but I didn't have the bandwidth to debug permissions errors caused
+            // by copying all of the compiled lib files.
         )
         .collect();
     fs_extra::copy_items(
@@ -109,25 +151,33 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
     // modify cargo.toml (edit package info & add actix + json_serde deps)
     build_project::edit_cargo_file(
+        PathBuf::from_str(".")
+            .expect("could not find project dir")
+            .canonicalize()
+            .expect("could not canonicalize path to project dir")
+            .as_path(),
         &function_cache_proj_path.join("Cargo.toml"),
         &original_target_function_name,
     )
     .expect("error editing cargo file");
 
     // lint project
-    build_project::lint(&function_cache_proj_path).expect("linting error");
+    if let Err(e) = build_project::lint(&function_cache_proj_path) {
+        tracing::error!(
+            error = e.as_ref() as &(dyn std::error::Error + 'static),
+            "ignoring linting error"
+        );
+    }
 
-    // check project and give errors
-    build_project::check(&function_cache_proj_path).expect("error checking function");
+    // // check project and give errors
+    // build_project::check(&function_cache_proj_path).expect("error checking function");
 
+    // println!("building microservice");
     // // build project so that the deps are packaged, and if the worker has the same architecture,
-    // // they can directly use the compiled version without having to recompile. todo commented
-    // // out because the build artifacts are too large.
-    // build_project::make_executable(
-    //     &function_cache_proj_path,
-    //     None
-    // ).expect("error building function");
-    // ^ todo
+    // // they can directly use the compiled version without having to recompile. todo the build artifacts are too large.
+    // build_project::make_executable(&function_cache_proj_path, None)
+    //     .expect("error building function");
+    // // ^ todo
 
     // compress project source files
     let project_source_binary = {
@@ -150,31 +200,32 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         extern crate turbolift;
 
         // dispatch call and process response
+        #[turbolift::tracing::instrument]
         async fn #original_target_function_ident(#typed_params) ->
             turbolift::DistributionResult<#result_type> {
             use std::time::Duration;
-            use turbolift::DistributionPlatform;
-            use turbolift::async_std::task;
-            use turbolift::cached::proc_macro::cached;
+            use turbolift::distributed_platform::DistributionPlatform;
+            use turbolift::DistributionResult;
+            use turbolift::tokio_compat_02::FutureExt;
+            use turbolift::uuid::Uuid;
 
-            // call .declare once by memoizing the call
-            #[cached(size=1)]
-            fn setup() {
-                #distribution_platform
-                    .lock()
-                    .unwrap()
-                    .declare(#original_target_function_name, #project_source_binary);
+            let mut platform = #distribution_platform.lock().await;
+
+            if !platform.has_declared(#original_target_function_name) {
+                platform
+                    .declare(#original_target_function_name, #project_source_binary)
+                    .compat()
+                    .await?;
             }
-            setup();
 
             let params = #params_vec.join("/");
-
-            let resp_string = #distribution_platform
-                .lock()?
+            let resp_string = platform
                 .dispatch(
                     #original_target_function_name,
                     params.to_string()
-                ).await?;
+                )
+                .compat()
+                .await?;
             Ok(turbolift::serde_json::from_str(&resp_string)?)
         }
     };
@@ -184,8 +235,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 #[cfg(not(feature = "distributed"))]
 #[proc_macro_attribute]
 pub fn on(_distribution_platform: TokenStream, function_: TokenStream) -> TokenStream {
-    use proc_macro2::{Ident, Span};
-
     // convert proc_macro::TokenStream to proc_macro2::TokenStream
     let function = TokenStream2::from(function_);
     let mut wrapped_original_function = extract_function::get_fn_item(function);
@@ -199,6 +248,7 @@ pub fn on(_distribution_platform: TokenStream, function_: TokenStream) -> TokenS
     let async_function = q! {
         extern crate turbolift;
 
+        #[turbolift::tracing::instrument]
         async fn #original_target_function_ident(#typed_params) -> turbolift::DistributionResult<#output_type> {
             #wrapped_original_function
             Ok(wrapped_function(#untyped_params))
