@@ -85,3 +85,4 @@ don't build any microservices or alter any code.
 - [ ] refactor split between turbolift_internals and turbolift_macros
 - [ ] improve names
 - [ ] send params in json as payload instead of directly in the url
+- [ ] we need to do a better job of cleaning up docker images, locally and in the cluster.
