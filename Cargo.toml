@@ -1,10 +1,11 @@
 [package]
 name = "turbolift"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Dominic Burkart <@DominicBurkart>"]
 edition = "2018"
-description = "WIP"
+description = "Easy distribution interface"
 readme = "README.md"
+homepage = "https://dominic.computer/turbolift"
 license = "Hippocratic-2.1"
 
 [features]
