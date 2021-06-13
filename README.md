@@ -5,6 +5,7 @@
     alt="turbolift’s current version badge"
     title="turbolift’s current version badge" />
 [![status](https://img.shields.io/github/checks-status/dominicburkart/turbolift/master)](https://github.com/DominicBurkart/turbolift/actions?query=branch%3Amaster)
+[![website](https://img.shields.io/badge/-website-blue)](https://dominic.computer/turbolift)
 
 Turbolift is a WIP distribution platform for rust. It's designed to make
 distribution an afterthought by extracting and distributing specific
@@ -73,7 +74,7 @@ e.g. pin the env or match the OS of the current environment.
 
 - [X] support kubernetes ([pr](https://github.com/DominicBurkart/turbolift/pull/2)).
 - [ ] implement liveliness and readiness checks for pods.
-- [ ] while setting up a new service, wait for the pod to come alive via 
+- [ ] while setting up a new service, wait for the pod to come alive via
 readiness check instead of just sleeping ([code location](https://github.com/DominicBurkart/turbolift/blob/6a63d09afcd6e7234e62bcb797d31730cf49aacf/turbolift_internals/src/kubernetes.rs#L257)).
 - [ ] roadmap support for other targets.
 - [X] only use distributed configuration when flagged (like in

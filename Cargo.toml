@@ -9,6 +9,7 @@ categories = ["build-utils", "development-tools", "concurrency", "network-progra
 readme = "README.md"
 homepage = "https://dominic.computer/turbolift"
 license = "Hippocratic-2.1"
+repository = "https://github.com/dominicburkart/turbolift/"
 
 [features]
 distributed = ["chrono", "turbolift_macros/distributed"]
