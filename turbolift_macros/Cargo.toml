@@ -1,8 +1,12 @@
 [package]
 name = "turbolift_macros"
 version = "0.1.1"
-authors = ["Dominic Burkart <1351120+DominicBurkart@users.noreply.github.com>"]
+authors = ["Dominic Burkart <@DominicBurkart>"]
 edition = "2018"
+description = "macros for turbolift"
+homepage = "https://dominic.computer/turbolift"
+license = "Hippocratic-2.1"
+repository = "https://github.com/dominicburkart/turbolift/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
