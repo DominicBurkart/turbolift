@@ -1,4 +1,3 @@
-use proc_macro2::TokenStream;
 use std::collections::VecDeque;
 use std::fs;
 use std::io::Cursor;
@@ -19,7 +18,7 @@ type ParamTypes = syn::punctuated::Punctuated<Box<syn::Type>, syn::Token![,]>;
 const IGNORED_DIRECTORIES: [&str; 3] = ["target", ".git", ".turbolift"];
 
 #[tracing::instrument]
-pub fn get_fn_item(function: TokenStream) -> syn::ItemFn {
+pub fn get_fn_item(function: TokenStream2) -> syn::ItemFn {
     match syn::parse2(function).unwrap() {
         syn::Item::Fn(fn_item) => fn_item,
         _ => panic!("token stream does not represent function."),
@@ -109,7 +108,7 @@ pub fn to_param_types(typed_params: TypedParams) -> ParamTypes {
 }
 
 #[tracing::instrument]
-pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream {
+pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream2 {
     let punc: Vec<String> = untyped_params
         .into_iter()
         .map(|pat| {
@@ -120,11 +119,11 @@ pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream {
         .collect();
 
     let vec_string = format!("vec![{}]", punc.join(", "));
-    TokenStream::from_str(&vec_string).unwrap()
+    TokenStream2::from_str(&vec_string).unwrap()
 }
 
 #[tracing::instrument]
-pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
+pub fn get_sanitized_file(function: &TokenStream2) -> TokenStream2 {
     let span = function.span();
     let path = span.source_file().path();
     let start_line = match span.start().line {
@@ -159,10 +158,10 @@ pub fn get_sanitized_file(function: &TokenStream) -> TokenStream {
 }
 
 #[tracing::instrument]
-pub fn unpack_path_params(untyped_params: &UntypedParams) -> TokenStream {
+pub fn unpack_path_params(untyped_params: &UntypedParams) -> TokenStream2 {
     let n_params = untyped_params.len();
     let params: Vec<String> = (0..n_params).map(|i| format!("path.{}", i)).collect();
-    TokenStream::from_str(&params.join(", ")).unwrap()
+    TokenStream2::from_str(&params.join(", ")).unwrap()
 }
 
 #[tracing::instrument]
