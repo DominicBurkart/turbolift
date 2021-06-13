@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::process::{Command, Stdio};
 use std::str::FromStr;
 
@@ -12,14 +13,13 @@ use regex::Regex;
 use tokio::time::{sleep, Duration};
 use tokio_compat_02::FutureExt;
 use url::Url;
+use uuid::Uuid;
 
 use crate::distributed_platform::{
     ArgsString, DistributionPlatform, DistributionResult, JsonResponse,
 };
 use crate::utils::{DEBUG_FLAG, RELEASE_FLAG};
 use crate::CACHE_PATH;
-use std::io::Write;
-use uuid::Uuid;
 
 const TURBOLIFT_K8S_NAMESPACE: &str = "default";
 type ImageTag = String;
