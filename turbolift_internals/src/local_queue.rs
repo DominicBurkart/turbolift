@@ -26,6 +26,7 @@ pub struct LocalQueue {
     fn_name_to_process: HashMap<FunctionName, Child>,
     fn_name_to_binary_path: HashMap<FunctionName, std::path::PathBuf>,
     request_client: reqwest::Client,
+    run_id: Uuid,
 }
 
 impl LocalQueue {
@@ -38,12 +39,7 @@ impl LocalQueue {
 impl DistributionPlatform for LocalQueue {
     /// declare a function. Runs once.
     #[tracing::instrument(skip(project_tar))]
-    async fn declare(
-        &mut self,
-        function_name: &str,
-        run_id: Uuid,
-        project_tar: &[u8],
-    ) -> DistributionResult<()> {
+    async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
         let relative_build_dir = Path::new(".")
             .join(".turbolift")
             .join(".worker_build_cache");
@@ -53,7 +49,7 @@ impl DistributionPlatform for LocalQueue {
         let function_executable = Path::new(CACHE_PATH.as_os_str()).join(format!(
             "{}_{}_server",
             function_name.to_string(),
-            run_id.as_u128()
+            self.run_id.as_u128()
         ));
         make_executable(&build_dir.join(function_name), Some(&function_executable))?;
         self.fn_name_to_binary_path

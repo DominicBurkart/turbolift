@@ -47,6 +47,7 @@ pub struct K8s {
     max_scale_n: u32,
     fn_names_to_ips: HashMap<String, Url>,
     request_client: reqwest::Client,
+    run_id: Uuid,
 
     #[derivative(Debug = "ignore")]
     /// A function called after the image is built locally via docker. deploy_container
@@ -82,6 +83,7 @@ impl K8s {
             max_scale_n: max,
             fn_names_to_ips: HashMap::new(),
             request_client: reqwest::Client::new(),
+            run_id: Uuid::new_v4(),
         }
     }
 }
@@ -93,12 +95,7 @@ fn sanitize_function_name(function_name: &str) -> String {
 #[async_trait]
 impl DistributionPlatform for K8s {
     #[tracing::instrument(skip(project_tar))]
-    async fn declare(
-        &mut self,
-        function_name: &str,
-        run_id: Uuid,
-        project_tar: &[u8],
-    ) -> DistributionResult<()> {
+    async fn declare(&mut self, function_name: &str, project_tar: &[u8]) -> DistributionResult<()> {
         // connect to cluster. tries in-cluster configuration first, then falls back to kubeconfig file.
         let deployment_client = Client::try_default().compat().await?;
         let deployments: Api<Deployment> =
@@ -107,7 +104,7 @@ impl DistributionPlatform for K8s {
         let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
 
         // generate image & push
-        let app_name = format!("{}-{}", sanitize_function_name(function_name), run_id);
+        let app_name = format!("{}-{}", sanitize_function_name(function_name), self.run_id);
         let container_name = format!("{}-app", app_name);
         let deployment_name = format!("{}-deployment", app_name);
         let service_name = format!("{}-service", app_name);
@@ -120,6 +117,9 @@ impl DistributionPlatform for K8s {
             "kind": "Deployment",
             "metadata": {
                 "name": deployment_name,
+                "labels": {
+                    "turbolift_run_id": self.run_id.to_string()
+                }
             },
             "spec": {
                 "selector": {
@@ -132,7 +132,8 @@ impl DistributionPlatform for K8s {
                     "metadata": {
                      "name": format!("{}-app", app_name),
                      "labels": {
-                       "app": app_name
+                       "app": app_name,
+                       "turbolift_run_id": self.run_id.to_string(),
                      }
                     },
                     "spec": {
@@ -158,6 +159,9 @@ impl DistributionPlatform for K8s {
             "kind": "Service",
             "metadata": {
                 "name": service_name,
+                "labels": {
+                    "turbolift_run_id": self.run_id.to_string(),
+                }
             },
             "spec": {
                 "selector": {
@@ -180,7 +184,10 @@ impl DistributionPlatform for K8s {
             "apiVersion": "networking.k8s.io/v1",
             "kind": "Ingress",
             "metadata": {
-                "name": ingress_name
+                "name": ingress_name,
+                "labels": {
+                    "turbolift_run_id": self.run_id.to_string(),
+                }
             },
             "spec": {
                 "rules": [
@@ -188,7 +195,7 @@ impl DistributionPlatform for K8s {
                         "http": {
                             "paths": [
                                 {
-                                    "path": format!("/{}/{}", function_name, run_id),
+                                    "path": format!("/{}/{}", function_name, self.run_id),
                                     "pathType": "Prefix",
                                     "backend": {
                                         "service" : {
@@ -224,7 +231,7 @@ impl DistributionPlatform for K8s {
 
         let ingress_ip = format!(
             "http://localhost:{}/{}/{}/",
-            EXTERNAL_PORT, function_name, run_id
+            EXTERNAL_PORT, function_name, self.run_id
         ); // we assume for now that the ingress is exposed on localhost
 
         if self.max_scale_n > 1 {
@@ -389,45 +396,18 @@ CMD [\"./{function_name}\", \"0.0.0.0:{container_port}\"]",
 impl Drop for K8s {
     #[tracing::instrument]
     fn drop(&mut self) {
-        // todo
-
-        // delete the associated services and deployments from the functions we distributed
-        // let rt = tokio::runtime::Runtime::new().unwrap();
-        // rt.block_on(async {
-        //     let deployment_client = Client::try_default().compat().await.unwrap();
-        //     let deployments: Api<Deployment> =
-        //         Api::namespaced(deployment_client, TURBOLIFT_K8S_NAMESPACE);
-        //     let service_client = Client::try_default().compat().await.unwrap();
-        //     let services: Api<Service> = Api::namespaced(service_client, TURBOLIFT_K8S_NAMESPACE);
-        //
-        //     let distributed_functions = self.fn_names_to_services.keys();
-        //     for function in distributed_functions {
-        //         let service = function_to_service_name(function);
-        //         services
-        //             .delete(&service, &Default::default())
-        //             .compat()
-        //             .await
-        //             .unwrap();
-        //         let deployment = function_to_deployment_name(function);
-        //         deployments
-        //             .delete(&deployment, &Default::default())
-        //             .compat()
-        //             .await
-        //             .unwrap();
-        //     }
-        // });
-        //
-        // // delete the local registry
-        // let registry_deletion_status = Command::new("docker")
-        //     .arg("rmi")
-        //     .arg("$(docker images |grep 'turbolift-registry')")
-        //     .status()
-        //     .unwrap();
-        // if !registry_deletion_status.success() {
-        //     eprintln!(
-        //         "could not delete turblift registry docker image. error code: {}",
-        //         registry_deletion_status.code().unwrap()
-        //     );
-        // }
+        let status = Command::new("kubectl")
+            .args(
+                format!(
+                    "delete pods,deployments,services,ingress -l turbolift_run_id={}",
+                    self.run_id.to_string()
+                )
+                .split(' '),
+            )
+            .status()
+            .expect("could not delete Kubernetes resources");
+        if !status.success() {
+            eprintln!("could not delete Kubernetes resources")
+        }
     }
 }

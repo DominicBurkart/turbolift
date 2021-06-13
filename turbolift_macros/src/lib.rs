@@ -213,7 +213,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
             if !platform.has_declared(#original_target_function_name) {
                 platform
-                    .declare(#original_target_function_name, Uuid::new_v4(), #project_source_binary)
+                    .declare(#original_target_function_name, #project_source_binary)
                     .compat()
                     .await?;
             }
