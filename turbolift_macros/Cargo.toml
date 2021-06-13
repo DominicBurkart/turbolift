@@ -22,3 +22,13 @@ cached = "0.19"
 tracing = {version="0.1", features=["attributes"]}
 tracing-futures = "0.2.4"
 syn = { version = "1", features=["full"] }
+
+[package.metadata.playground]
+features = ["span-locations"]
+
+[package.metadata.docs.rs]
+ rustc-args = ["--cfg", "procmacro2_semver_exempt"]
+ rustdoc-args = ["--cfg", "procmacro2_semver_exempt"]
+
+[patch.crates-io]
+turbolift_macros = { path = "." }
