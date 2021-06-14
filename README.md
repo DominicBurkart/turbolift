@@ -1,9 +1,13 @@
 # Turbolift
 
-<img
-    src="https://img.shields.io/crates/v/turbolift.svg"
-    alt="turbolift’s current version badge"
-    title="turbolift’s current version badge" />
+<a href="https://crates.io/crates/turbolift">
+    <img 
+        height="28px" 
+        src="https://img.shields.io/crates/v/turbolift.svg?style=for-the-badge" 
+        alt="crates.io version"
+        title="crates.io version"
+    />
+</a>
 [![status](https://img.shields.io/github/workflow/status/dominicburkart/turbolift/examples)](https://github.com/DominicBurkart/turbolift/actions?query=branch%3Amaster)
 [![website](https://img.shields.io/badge/-website-blue)](https://dominic.computer/turbolift)
 
