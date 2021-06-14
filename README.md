@@ -1,6 +1,7 @@
 # Turbolift
 
-<a href="https://crates.io/crates/turbolift"><img  src="https://img.shields.io/crates/v/turbolift.svg" alt="crates.io version"  title="crates.io version"  /> </a>
+[![crates.io](https://img.shields.io/crates/v/turbolift.svg)](https://crates.io/crates/turbolift)
+[![docs.rs](https://img.shields.io/docsrs/turbolift.svg)](https://docs.rs/turbolift)
 [![status](https://img.shields.io/github/workflow/status/dominicburkart/turbolift/examples)](https://github.com/DominicBurkart/turbolift/actions?query=branch%3Amaster)
 [![website](https://img.shields.io/badge/-website-blue)](https://dominic.computer/turbolift)
 
