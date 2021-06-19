@@ -3,6 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/turbolift.svg)](https://crates.io/crates/turbolift)
 [![docs.rs](https://img.shields.io/docsrs/turbolift.svg)](https://docs.rs/turbolift)
 [![status](https://img.shields.io/github/workflow/status/dominicburkart/turbolift/examples)](https://github.com/DominicBurkart/turbolift/actions?query=branch%3Amaster)
+[![last commit](https://img.shields.io/github/last-commit/dominicburkart/turbolift)](https://github.com/DominicBurkart/turbolift)
 [![website](https://img.shields.io/badge/-website-blue)](https://dominic.computer/turbolift)
 
 Turbolift is a distribution interface for rust. It's designed to make
