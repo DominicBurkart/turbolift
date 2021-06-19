@@ -1,6 +1,6 @@
 [package]
 name = "turbolift_internals"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Dominic Burkart <@DominicBurkart>"]
 edition = "2018"
 description = "macros for turbolift"

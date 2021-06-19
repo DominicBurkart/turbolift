@@ -1,6 +1,6 @@
 [package]
 name = "turbolift_macros"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Dominic Burkart <@DominicBurkart>"]
 edition = "2018"
 description = "macros for turbolift"
@@ -20,7 +20,7 @@ proc-macro = true
 quote = "1"
 proc-macro2 = "1"
 fs_extra = "1"
-turbolift_internals = { path="../turbolift_internals", version="0.1.4"}
+turbolift_internals = { path="../turbolift_internals", version="0.1.5"}
 futures = "0.3"
 cached = "0.19"
 tracing = {version="0.1", features=["attributes"]}
