@@ -37,7 +37,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
     untyped_params_with_run_id.insert(
         0,
         Box::new(syn::Pat::Ident(syn::PatIdent {
-            attrs: vec![],
+            attrs: Vec::new(),
             by_ref: None,
             mutability: None,
             ident: Ident::new(RUN_ID_NAME, Span::call_site()),
