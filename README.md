@@ -5,8 +5,8 @@
 [![status](https://img.shields.io/github/workflow/status/dominicburkart/turbolift/examples)](https://github.com/DominicBurkart/turbolift/actions?query=branch%3Amaster)
 [![website](https://img.shields.io/badge/-website-blue)](https://dominic.computer/turbolift)
 
-Turbolift is a WIP distribution platform for rust. It's designed to make
-distribution an afterthought by extracting and distributing specific
+Turbolift is a distribution interface for rust. It's designed to make
+distribution easier and more maintainable by extracting and distributing specific
 functions and their dependencies from a larger rust application.
 Turbolift then acts as the glue between these extracted mini-apps and
 the main application.
