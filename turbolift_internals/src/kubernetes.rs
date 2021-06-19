@@ -23,7 +23,7 @@ use crate::CACHE_PATH;
 
 const TURBOLIFT_K8S_NAMESPACE: &str = "default";
 type ImageTag = String;
-type DeployContainerFunction = Box<dyn Fn(&str) -> anyhow::Result<&str> + Send + 'static>;
+type DeployContainerFunction = Box<dyn Fn(String) -> anyhow::Result<String> + Send + 'static>;
 
 pub const CONTAINER_PORT: i32 = 5678;
 pub const SERVICE_PORT: i32 = 5678;
@@ -390,7 +390,7 @@ CMD [\"./{function_name}\", \"0.0.0.0:{container_port}\"]",
     // always remove the build directory, even on build error
     std::fs::remove_dir_all(build_dir_canonical)?;
 
-    result.and((k8s.deploy_container)(unique_tag.as_str()).map(|s| s.to_string()))
+    result.and((k8s.deploy_container)(unique_tag))
 }
 
 impl Drop for K8s {

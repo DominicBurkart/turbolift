@@ -25,7 +25,7 @@ lazy_static! {
 /// a function that is called after the container is
 /// built, so that the container may be added to a
 /// specific registry or otherwise be made available.
-fn load_container_into_kind(tag: &str) -> anyhow::Result<&str> {
+fn load_container_into_kind(tag: String) -> anyhow::Result<String> {
     std::process::Command::new("kind")
         .args(format!("load docker-image {}", tag).as_str().split(' '))
         .status()?;
