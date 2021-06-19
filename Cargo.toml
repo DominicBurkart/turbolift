@@ -1,6 +1,6 @@
 [package]
 name = "turbolift"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Dominic Burkart <@DominicBurkart>"]
 edition = "2018"
 description = "Easy distribution interface 🚡"
@@ -16,8 +16,8 @@ distributed = ["chrono", "turbolift_macros/distributed"]
 # todo we can optimize reqs for children with this load
 
 [dependencies]
-turbolift_macros = { path = "./turbolift_macros", version="0.1.2" }
-turbolift_internals = { path = "./turbolift_internals", version="0.1.2" }
+turbolift_macros = { path = "./turbolift_macros", version="0.1.3" }
+turbolift_internals = { path = "./turbolift_internals", version="0.1.3" }
 chrono = { version = "0.4", optional = true }
 actix-web = { version = "3" }
 serde_json = { version = "1" }
