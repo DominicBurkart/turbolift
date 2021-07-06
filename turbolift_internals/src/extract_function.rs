@@ -4,6 +4,8 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use include_dir::Dir;
+extern crate pathdiff;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
 use syn::spanned::Spanned;
@@ -16,6 +18,8 @@ type UntypedParams = syn::punctuated::Punctuated<Box<syn::Pat>, syn::Token![,]>;
 type ParamTypes = syn::punctuated::Punctuated<Box<syn::Type>, syn::Token![,]>;
 
 const IGNORED_DIRECTORIES: [&str; 3] = ["target", ".git", ".turbolift"];
+
+static PROJECT_DIR: Dir = include_dir!(".");
 
 #[tracing::instrument]
 pub fn get_fn_item(function: TokenStream2) -> syn::ItemFn {
@@ -137,7 +141,17 @@ pub fn get_sanitized_file(function: &TokenStream2) -> TokenStream2 {
     if !path.exists() {
         panic!("File path for the targeted function does not exist: {:?} does the compiler support getting the TokenStream from a path?", path);
     }
-    let file_contents = std::fs::read_to_string(path).unwrap();
+    let file_contents = PROJECT_DIR
+        .get_file(
+            pathdiff::diff_paths(
+                path,
+                fs::canonicalize(".").expect("code directory cannot be found"),
+            )
+            .expect("get_sanitized_file: could not find the relative path of source code"),
+        )
+        .expect("get_sanitized_file: could not locate source code within file store")
+        .contents_utf8()
+        .expect("get_sanitized_file: could not decode source code from file store");
 
     // remove target function
     let target_function_removed = {

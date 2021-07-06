@@ -1,5 +1,8 @@
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate include_dir;
+
 use std::path::Path;
 
 pub mod build_project;
