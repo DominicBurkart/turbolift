@@ -2,7 +2,7 @@
 
 [![crates.io](https://img.shields.io/crates/v/turbolift.svg)](https://crates.io/crates/turbolift)
 [![docs.rs](https://img.shields.io/docsrs/turbolift.svg)](https://docs.rs/turbolift)
-[![status](https://img.shields.io/github/workflow/status/dominicburkart/turbolift/examples)](https://github.com/DominicBurkart/turbolift/actions?query=branch%3Amaster)
+[![status](https://img.shields.io/github/workflow/status/dominicburkart/turbolift/examples)](https://github.com/DominicBurkart/turbolift/actions?query=branch%3Amain)
 [![last commit](https://img.shields.io/github/last-commit/dominicburkart/turbolift)](https://github.com/DominicBurkart/turbolift)
 [![website](https://img.shields.io/badge/-website-blue)](https://dominic.computer/turbolift)
 
@@ -12,7 +12,7 @@ functions and their dependencies from a larger rust application.
 Turbolift then acts as the glue between these extracted mini-apps and
 the main application.
 
-Look in the [examples](https://github.com/DominicBurkart/turbolift/tree/master/examples)
+Look in the [examples](https://github.com/DominicBurkart/turbolift/tree/main/examples)
 directory for full projects with working syntax examples.
 
 ## Distribution as an afterthought
