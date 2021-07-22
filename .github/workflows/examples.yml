@@ -1,10 +1,14 @@
 name: examples
 
+
+
 on:
   push:
     branches: main
   pull_request:
     branches: [ main ]
+  schedule:
+    - cron:  '45 8 * * *'
 
 jobs:
   local_queue_example:
