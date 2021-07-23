@@ -8,7 +8,7 @@ on:
   pull_request:
     branches: [ main ]
   schedule:
-    - cron:  '45 8 * * *'
+    - cron:  '45 4 * * *'
 
 jobs:
   local_queue_example:
