@@ -30,7 +30,7 @@ echo "cluster initialized."
 
 
 printf "\n🚪 adding ingress\n"
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/6d53dd1430f15af4d75bc4df90b89c64c9d65d24/deploy/static/provider/kind/deploy.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/191b27a8bbc168422582375cf352f95ea89c2732/deploy/static/provider/kind/deploy.yaml
 sleep 90s # give k8s time to generate the pod ^
 printf "\n⏱️ waiting for ingress controller to be ready...\n"
 kubectl wait --namespace ingress-nginx \
