@@ -129,7 +129,8 @@ pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream2 {
 #[tracing::instrument]
 pub fn get_sanitized_file(function: &TokenStream2) -> TokenStream2 {
     let span = function.span();
-    let path = span.source_file().path();
+    let path = fs::canonicalize(span.source_file().path())
+        .expect("get_sanitized_file: could not canonicalize source span file path.");
     let start_line = match span.start().line {
         0 => 0,
         1 => 0,
