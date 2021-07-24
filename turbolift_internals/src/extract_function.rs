@@ -129,8 +129,7 @@ pub fn params_json_vec(untyped_params: UntypedParams) -> TokenStream2 {
 #[tracing::instrument]
 pub fn get_sanitized_file(function: &TokenStream2) -> TokenStream2 {
     let span = function.span();
-    let path = fs::canonicalize(span.source_file().path())
-        .expect("get_sanitized_file: could not canonicalize source span file path.");
+    let path = span.source_file().path();
     let start_line = match span.start().line {
         0 => 0,
         1 => 0,
@@ -143,13 +142,7 @@ pub fn get_sanitized_file(function: &TokenStream2) -> TokenStream2 {
         panic!("File path for the targeted function does not exist: {:?} does the compiler support getting the TokenStream from a path?", path);
     }
     let file_contents = PROJECT_DIR
-        .get_file(
-            pathdiff::diff_paths(
-                path,
-                fs::canonicalize(".").expect("code directory cannot be found"),
-            )
-            .expect("get_sanitized_file: could not find the relative path of source code"),
-        )
+        .get_file(path)
         .expect("get_sanitized_file: could not locate source code within file store")
         .contents_utf8()
         .expect("get_sanitized_file: could not decode source code from file store");
