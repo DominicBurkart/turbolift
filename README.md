@@ -72,7 +72,7 @@ e.g. pin the env or match the OS of the current environment.
 ## Current Project Goals
 
 - [X] support kubernetes ([pr](https://github.com/DominicBurkart/turbolift/pull/2)).
-- [ ] implement liveliness and readiness checks for pods.
+- [X] implement startup, liveliness, and readiness probes for pods.
 - [ ] while setting up a new service, wait for the pod to come alive via
 readiness check instead of just sleeping ([code location](https://github.com/DominicBurkart/turbolift/blob/6a63d09afcd6e7234e62bcb797d31730cf49aacf/turbolift_internals/src/kubernetes.rs#L257)).
 - [ ] roadmap support for other targets.
