@@ -81,6 +81,11 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         #dummy_function
         #target_function
 
+        #[get("/health-probe")]
+        async fn health_probe(_req: HttpRequest) -> impl Responder {
+            HttpResponse::Ok()
+        }
+
         #[get(#wrapper_route)]
         #[turbolift::tracing::instrument]
         async fn turbolift_wrapper(web::Path((#untyped_params_tokens_with_run_id)): web::Path<(#param_types)>) -> Result<HttpResponse> {
@@ -103,6 +108,9 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                     App::new()
                         .service(
                             turbolift_wrapper
+                        )
+                        .service(
+                            health_probe
                         )
                         .default_service(
                             web::get()

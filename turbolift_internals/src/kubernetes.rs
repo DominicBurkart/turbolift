@@ -140,7 +140,28 @@ impl DistributionPlatform for K8s {
                         "containers": [
                             {
                                 "name": container_name,
-                                "image": tag_in_reg
+                                "image": tag_in_reg,
+                                "startupProbe": {
+                                    "httpGet": {
+                                        "path": "/health-probe",
+                                        "port": CONTAINER_PORT
+                                    },
+                                    "periodSeconds": 2
+                                },
+                                "readinessProbe": {
+                                    "httpGet": {
+                                        "path": "/health-probe",
+                                        "port": CONTAINER_PORT
+                                    },
+                                    "periodSeconds": 2
+                                },
+                                "livenessProbe": {
+                                    "httpGet": {
+                                        "path": "/health-probe",
+                                        "port": CONTAINER_PORT
+                                    },
+                                    "periodSeconds": 2
+                                }
                             }
                          ]
                     }
