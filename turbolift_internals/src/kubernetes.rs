@@ -71,10 +71,7 @@ impl K8s {
     /// The deploy container function is used for making containers accessible
     /// to the cluster. See [`K8s::deploy_container`].
     #[tracing::instrument(skip(deploy_container))]
-    pub fn with_deploy_function_and_max_replicas(
-        deploy_container: DeployContainerFunction,
-        max: u32,
-    ) -> K8s {
+    pub fn new(deploy_container: DeployContainerFunction, max: u32) -> K8s {
         if max < 1 {
             panic!("max < 1 while instantiating k8s (value: {})", max)
         }

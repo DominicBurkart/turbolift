@@ -13,10 +13,7 @@ use turbolift::on;
 
 /// instantiate the global cluster manager
 lazy_static! {
-    static ref K8S: Mutex<K8s> = Mutex::new(K8s::with_deploy_function_and_max_replicas(
-        Box::new(load_container_into_kind),
-        2
-    ));
+    static ref K8S: Mutex<K8s> = Mutex::new(K8s::new(Box::new(load_container_into_kind), 2));
 }
 
 /// The application writer is responsible for placing
