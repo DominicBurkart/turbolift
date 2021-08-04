@@ -6,11 +6,6 @@
 [![last commit](https://img.shields.io/github/last-commit/dominicburkart/turbolift)](https://github.com/DominicBurkart/turbolift)
 [![website](https://img.shields.io/badge/-website-blue)](https://dominic.computer/turbolift)
 
-NOTE: due to some differences in how Cargo builds projects versus how they are
-built from source, turbolift currently must be installed as a local dependency.
-This can be done by cloning the repo and linking to it in your project (reference
-the [Cargo doc for dependency specification](https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html)).
-
 Turbolift is a distribution interface for rust. It's designed to make
 distribution easier and more maintainable by extracting and distributing specific
 functions and their dependencies from a larger rust application.
@@ -18,7 +13,8 @@ Turbolift then acts as the glue between these extracted mini-apps and
 the main application.
 
 Look in the [examples](https://github.com/DominicBurkart/turbolift/tree/main/examples)
-directory for full projects with working syntax examples.
+directory for full projects with working syntax examples. An [external example](https://github.com/DominicBurkart/turbolift_example)
+is maintained that can be used as a template repo.
 
 ## Distribution as an afterthought
 
