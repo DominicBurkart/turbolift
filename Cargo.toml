@@ -1,6 +1,6 @@
 [package]
 name = "turbolift"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Dominic Burkart <@DominicBurkart>"]
 edition = "2018"
 description = "Easy distribution interface 🚡"

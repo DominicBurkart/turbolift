@@ -1,6 +1,6 @@
 [package]
 name = "turbolift_macros"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Dominic Burkart <@DominicBurkart>"]
 edition = "2018"
 description = "macros for turbolift"
