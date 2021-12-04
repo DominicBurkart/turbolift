@@ -80,14 +80,12 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         #dummy_function
         #target_function
 
-        #[turbolift::actix_web::get("/health-probe")]
         async fn health_probe(_req: turbolift::actix_web::HttpRequest) -> impl turbolift::actix_web::Responder {
             turbolift::actix_web::HttpResponse::Ok()
         }
 
-        #[turbolift::actix_web::get(#wrapper_route)]
         #[turbolift::tracing::instrument]
-        async fn turbolift_wrapper(turbolift::actix_web::web::Path((#untyped_params_tokens_with_run_id)): web::Path<(#param_types)>) -> Result<turbolift::actix_web::HttpResponse> {
+        async fn turbolift_wrapper(turbolift::actix_web::web::Path((#untyped_params_tokens_with_run_id)): web::Path<(#param_types)>) -> impl turbolift::actix_web::Responder {
             Ok(
                 turbolift::actix_web::HttpResponse::Ok()
                     .json(#function_name(#untyped_params_tokens))
@@ -105,11 +103,11 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             turbolift::actix_web::HttpServer::new(
                 ||
                     turbolift::actix_web::App::new()
-                        .service(
-                            turbolift_wrapper
+                        .route(
+                            #wrapper_route, turbolift::actix_web::web::get().to(turbolift_wrapper)
                         )
-                        .service(
-                            health_probe
+                        .route(
+                            "/health-probe", turbolift::actix_web::web::get().to(health_probe)
                         )
                         .default_service(
                             turbolift::actix_web::web::get()
