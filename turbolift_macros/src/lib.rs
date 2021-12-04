@@ -85,45 +85,45 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
         }
 
         #[turbolift::tracing::instrument]
-        async fn turbolift_wrapper(turbolift::actix_web::web::Path((#untyped_params_tokens_with_run_id)): web::Path<(#param_types)>) -> impl turbolift::actix_web::Responder {
+        async fn turbolift_wrapper(turbolift::actix_web::web::Path((#untyped_params_tokens_with_run_id)): turbolift::actix_web::web::Path<(#param_types)>) -> impl turbolift::actix_web::Responder {
             Ok(
                 turbolift::actix_web::HttpResponse::Ok()
                     .json(#function_name(#untyped_params_tokens))
             )
         }
 
-        #[turbolift::actix_web::main]
         #[turbolift::tracing::instrument]
-        async fn main() -> std::io::Result<()> {
-            use actix_web::{App, HttpServer, HttpRequest, web};
-
-            let args: Vec<String> = std::env::args().collect();
-            let ip_and_port = &args[1];
-            turbolift::tracing::info!("service main() started. ip_and_port parsed.");
-            turbolift::actix_web::HttpServer::new(
-                ||
-                    turbolift::actix_web::App::new()
-                        .route(
-                            #wrapper_route, turbolift::actix_web::web::get().to(turbolift_wrapper)
-                        )
-                        .route(
-                            "/health-probe", turbolift::actix_web::web::get().to(health_probe)
-                        )
-                        .default_service(
-                            turbolift::actix_web::web::get()
-                                .to(
-                                    |req: turbolift::actix_web::HttpRequest|
-                                        turbolift::actix_web::HttpResponse::NotFound().body(
-                                            format!("endpoint not found: {}", req.uri())
+        fn main() {
+            turbolift::actix_web::rt::System::new("main".to_string())
+                .block_on(async move {
+                    let args: Vec<String> = std::env::args().collect();
+                    let ip_and_port = &args[1];
+                    turbolift::tracing::info!("service main() started. ip_and_port parsed.");
+                    turbolift::actix_web::HttpServer::new(
+                        ||
+                            turbolift::actix_web::App::new()
+                                .route(
+                                    "#wrapper_route", turbolift::actix_web::web::get().to(turbolift_wrapper)
+                                )
+                                .route(
+                                    "/health-probe", turbolift::actix_web::web::get().to(health_probe)
+                                )
+                                .default_service(
+                                    turbolift::actix_web::web::get()
+                                        .to(
+                                            |req: turbolift::actix_web::HttpRequest|
+                                                turbolift::actix_web::HttpResponse::NotFound().body(
+                                                    format!("endpoint not found: {}", req.uri())
+                                                )
                                         )
                                 )
-                        )
-            )
-            .bind(ip_and_port)?
-            .run()
-            .compat()
-            .await
-        }
+                    )
+                    .bind(ip_and_port)?
+                    .run()
+                    .compat()
+                    .await
+                });
+    }
     };
 
     // copy all files in repo into cache
