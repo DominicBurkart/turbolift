@@ -1,3 +1,4 @@
+#![feature(async_closure)] // not actually necessary, just added to test that feature defs work.
 #[macro_use]
 extern crate lazy_static;
 #[macro_use(c)]
