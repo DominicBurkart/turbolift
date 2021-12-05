@@ -16,14 +16,15 @@ Look in the [examples](https://github.com/DominicBurkart/turbolift/tree/main/exa
 directory for full projects with working syntax examples. An [external example](https://github.com/DominicBurkart/turbolift_example)
 is maintained that can be used as a template repo.
 
-## Important implementation notes
+## Notes
 
+- Turbolift works as a proof-of-concept, but has not been optimized to shrink compilation time/requirements.
 - Distribution is feature-gated in Turbolift to facilitate development / conditional distribution. The feature is called "distributed."
-- implemented over http using `reqwest` and `actix-web` (no current plans to
+- Turbolift is implemented over http using `reqwest` and `actix-web` (no current plans to
 refactor to use a lower level network protocol).
-- assumes a secure network– function parameters are sent in plaintext to the
+- Turbolift assumes a secure network– function parameters are sent in plaintext to the
 microservice.
-- source vulnerability: when building, anything in the project directory or in
+- When building, anything in the project directory or in
 local dependencies declared in the project manifest could be bundled and sent
 over the network to workers.
 
