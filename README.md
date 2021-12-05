@@ -6,7 +6,7 @@
 [![last commit](https://img.shields.io/github/last-commit/dominicburkart/turbolift)](https://github.com/DominicBurkart/turbolift)
 [![website](https://img.shields.io/badge/-website-blue)](https://dominic.computer/turbolift)
 
-Turbolift is a distribution interface for rust. It's designed to make
+Turbolift is a prototype distribution interface for rust. It's designed to make
 distribution easier and more maintainable by extracting and distributing specific
 functions and their dependencies from a larger rust application.
 Turbolift then acts as the glue between these extracted mini-apps and
@@ -16,20 +16,9 @@ Look in the [examples](https://github.com/DominicBurkart/turbolift/tree/main/exa
 directory for full projects with working syntax examples. An [external example](https://github.com/DominicBurkart/turbolift_example)
 is maintained that can be used as a template repo.
 
-## Distribution as an afterthought
-
-Turbolift allows developers to turn normal rust functions into distributed services
-just by tagging them with a macro. Right now, Turbolift only works with K8s, though
-it's designed to be extended to other cluster management utilities.
-
-## Orchestration with a feature flag
-
-Distribution is feature-gated in Turbolift, so it's easy to activate distribution
-for some builds and deactivate it for others (while developing locally, for
-example).
-
 ## Important implementation notes
 
+- Distribution is feature-gated in Turbolift to facilitate development / conditional distribution. The feature is called "distributed."
 - implemented over http using `reqwest` and `actix-web` (no current plans to
 refactor to use a lower level network protocol).
 - assumes a secure network– function parameters are sent in plaintext to the
@@ -42,14 +31,12 @@ More information is available on the [project homepage](https://dominic.computer
 
 ## Current Limitations
 
-- DO NOT RUN TURBOLIFT ON A PUBLIC-FACING CLUSTER.
 - *Because of reliance on unstable proc_macro::Span features, all programs
 using turbolift need to be built with an unstable nightly compiler flag (e.g.
 `RUSTFLAGS='--cfg procmacro2_semver_exempt' cargo build`)*
 ([tracking issue](https://github.com/rust-lang/rust/issues/54725)).
 - Functions are assumed to be pure (lacking side-effects such as
 writing to the file system or mutation of a global variable).
-*Today, this is not enforced by the code.*
 - For a function to be distributed, its inputs and outputs have to be
 (de)serializable with [Serde](https://github.com/serde-rs/serde).
 - Distributed functions cannot be nested in other functions.
@@ -82,11 +69,3 @@ readiness check instead of just sleeping ([code location](https://github.com/Dom
 tagged function into an async function (to provide an identical API), but
 don't build any microservices or alter any code.
 - [ ] build cross-architecture compilation tests into the CI.
-
-## Current tech debt todo
-
-- [ ] start reducing ginormous API, right now basically everything is public
-- [ ] refactor split between turbolift_internals and turbolift_macros
-- [ ] improve names
-- [ ] send params in json as payload instead of directly in the url
-- [ ] we need to do a better job of cleaning up docker images, locally and in the cluster.
