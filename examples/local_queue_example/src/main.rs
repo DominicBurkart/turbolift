@@ -1,3 +1,4 @@
+#![feature(async_closure)] // not actually necessary, just added to test that feature defs work.
 extern crate proc_macro;
 use futures::future::try_join_all;
 use rand;
