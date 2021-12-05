@@ -86,10 +86,8 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
 
         #[turbolift::tracing::instrument]
         async fn turbolift_wrapper(turbolift::actix_web::web::Path((#untyped_params_tokens_with_run_id)): turbolift::actix_web::web::Path<(#param_types)>) -> impl turbolift::actix_web::Responder {
-            Ok(
-                turbolift::actix_web::HttpResponse::Ok()
-                    .json(#function_name(#untyped_params_tokens))
-            )
+            turbolift::actix_web::HttpResponse::Ok()
+                .json(#function_name(#untyped_params_tokens))
         }
 
         #[turbolift::tracing::instrument]
