@@ -120,7 +120,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                     .run()
                     .compat()
                     .await
-                });
+                }).unwrap();
     }
     };
 
