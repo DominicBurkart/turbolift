@@ -215,16 +215,13 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
             let mut platform = #distribution_platform.lock().await;
 
             if !platform.has_declared(#original_target_function_name) {
-                println!("declaring target function");
                 platform
                     .declare(#original_target_function_name, #project_source_binary)
                     .compat()
                     .await?;
-                println!("target function declared");
             }
 
             let params = #params_vec.join("/");
-            println!("dispatching request");
             let resp_string = platform
                 .dispatch(
                     #original_target_function_name,
@@ -232,7 +229,6 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                 )
                 .compat()
                 .await?;
-            println!("response: {}", resp_string);
             Ok(turbolift::serde_json::from_str(&resp_string)?)
         }
     };
