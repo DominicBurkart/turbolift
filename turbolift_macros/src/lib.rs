@@ -101,7 +101,7 @@ pub fn on(distribution_platform_: TokenStream, function_: TokenStream) -> TokenS
                         ||
                             turbolift::actix_web::App::new()
                                 .route(
-                                    "#wrapper_route", turbolift::actix_web::web::get().to(turbolift_wrapper)
+                                    #wrapper_route, turbolift::actix_web::web::get().to(turbolift_wrapper)
                                 )
                                 .route(
                                     "/health-probe", turbolift::actix_web::web::get().to(health_probe)
