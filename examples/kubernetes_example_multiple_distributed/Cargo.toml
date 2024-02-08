@@ -1,0 +1,22 @@
+[package]
+name = "kubernetes_example"
+version = "0.1.0"
+authors = ["Dominic Burkart <1351120+DominicBurkart@users.noreply.github.com>"]
+edition = "2018"
+
+[features]
+"distributed" = ["turbolift/distributed"]
+
+[dependencies]
+rand = "0.7"
+tokio = {version="1", features=["full"]}
+lazy_static = "1"
+futures = "0.3"
+cute = "0.3"
+anyhow = "1.0.41"
+turbolift = { path="../../" }
+
+# for printing out tracing
+tracing = "0.1"
+tracing-futures = "0.2"
+tracing-subscriber = {version="0.2", features=["fmt"]}
